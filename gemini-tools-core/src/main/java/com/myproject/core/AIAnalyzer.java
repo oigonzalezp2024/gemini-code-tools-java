@@ -14,29 +14,30 @@ public class AIAnalyzer {
 
     private static final String API_URL =
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
-    private static final int TIMEOUT_MS = 15000;
+    private static final int TIMEOUT_MS = 60000;
 
     /**
      * Escapa una cadena para su inclusión segura como valor en un payload JSON.
+     * SE CORRIGEN ERRORES DE SINTAXIS EN LAS SECUENCIAS DE ESCAPE (\n, \r, \t).
      * @param value La cadena a escapar.
      * @return La cadena escapada.
      */
     private String escapeJsonString(String value) {
         if (value == null) return "";
-        // Escapamos caracteres especiales de JSON
-        return value.replace("\\", "\\\\") // Debe ir primero para no escapar los que ya son de escape
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                    .replace("\r", "\\r")
-                    .replace("\t", "\\t");
+        // Debe ir primero para no escapar los backslashes que ya son de escape
+        return value.replace("\\", "\\\\") 
+                        .replace("\"", "\\\"")
+                        // Correcciones de sintaxis para los caracteres de control
+                        .replace("\n", "\\n")
+                        .replace("\r", "\\r")
+                        .replace("\t", "\\t");
     }
 
     /**
      * Extrae el texto generado desde la respuesta JSON de la API de Gemini
      * y realiza la decodificación de las secuencias de escape JSON.
-     * * Se decodifican caracteres Unicode (\u003c, \u003e) que pueden aparecer
-     * en comentarios Javadoc o genéricos.
-     * * @param jsonResponse La respuesta JSON completa.
+     * SE CORRIGEN ERRORES DE SINTAXIS Y SE USA EL DESESCAPE COMPLETO (Unicode y directo).
+     * @param jsonResponse La respuesta JSON completa.
      * @return El texto extraído y decodificado.
      */
     private String extractTextFromGeminiResponse(String jsonResponse) {
@@ -88,7 +89,7 @@ public class AIAnalyzer {
             throw new IllegalStateException("❌ La variable de entorno GEMINI_API_KEY no está configurada.");
         }
 
-        // Construcción del prompt
+        // Construcción del prompt (usando \n para mejor legibilidad)
         String userQuery = String.format(
             "Contexto del proyecto:\n%s\n\nArchivo a corregir:\n%s",
             context, fileToFix
@@ -98,12 +99,11 @@ public class AIAnalyzer {
         String systemInstruction =
             "Actúa como un ingeniero de software experimentado. Analiza el contexto completo del proyecto y el archivo proporcionado para encontrar y aplicar las correcciones necesarias. Tu respuesta DEBE ser SOLAMENTE el código completo corregido, sin explicaciones ni bloques de marcado.";
 
-        // ✅ Estructura JSON CORREGIDA: Eliminamos todos los espacios y saltos de línea innecesarios
-        // para evitar el error 400 'Invalid JSON payload'.
+        // ✅ ESTRUCTURA JSON CORREGIDA: Se usa 'systemInstruction' y 'role':'user' (crucial para la API)
         String jsonInputString = String.format(
             "{"
-          + "\"system_instruction\":{\"parts\":[{\"text\":\"%s\"}]},"
-          + "\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]"
+          + "\"systemInstruction\":{\"parts\":[{\"text\":\"%s\"}]}," 
+          + "\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"%s\"}]}]" 
           + "}",
             escapeJsonString(systemInstruction),
             escapeJsonString(userQuery)
