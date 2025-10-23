@@ -1,0 +1,67 @@
+{
+  "titulo": "Perfiles Técnicos Fundamentales para Desarrollo Java Spring Boot",
+  "introduccion": "Matriz de roles clave, sus responsabilidades principales y las herramientas esenciales para un proyecto moderno de software con Spring Boot.",
+  "perfiles": [
+    {
+      "cargo": "Desarrollador Java Backend",
+      "nivel_recomendado": "Senior/Mid/Junior",
+      "rol_principal": "Escribir la lógica de negocio, desarrollar y mantener APIs REST/microservicios, manejar la seguridad y la integración con la base de datos.",
+      "herramientas_clave": [
+        "Java (versiones recientes)",
+        "Spring Boot/Spring Framework",
+        "Spring Data/JPA/Hibernate",
+        "Spring Security",
+        "JUnit/Mockito"
+      ],
+      "es_fundamental": true
+    },
+    {
+      "cargo": "Ingeniero/Administrador de Bases de Datos (DBA)",
+      "nivel_recomendado": "Mid/Senior",
+      "rol_principal": "Diseño, implementación y optimización del esquema de la base de datos (SQL/NoSQL). Asegurar el rendimiento y la integridad de los datos.",
+      "herramientas_clave": [
+        "SQL (PostgreSQL, MySQL, Oracle)",
+        "NoSQL (MongoDB, Cassandra)",
+        "Optimización de Queries"
+      ],
+      "es_fundamental": true
+    },
+    {
+      "cargo": "Ingeniero DevOps",
+      "nivel_recomendado": "Mid/Senior",
+      "rol_principal": "Automatización del ciclo de vida (CI/CD). Configuración de pipelines, contenedores y orquestación para el despliegue a producción.",
+      "herramientas_clave": [
+        "Git",
+        "Maven/Gradle",
+        "Jenkins/GitLab CI/GitHub Actions",
+        "Docker",
+        "Kubernetes",
+        "AWS/GCP/Azure"
+      ],
+      "es_fundamental": true
+    },
+    {
+      "cargo": "Ingeniero de Control de Calidad (QA)/Tester",
+      "nivel_recomendado": "Junior/Mid",
+      "rol_principal": "Diseñar y ejecutar pruebas (unitarias, de integración, funcionales y de rendimiento) para garantizar la calidad y ausencia de errores.",
+      "herramientas_clave": [
+        "JUnit/Mockito (Backend)",
+        "Herramientas de automatización de pruebas",
+        "Metodologías de testing"
+      ],
+      "es_fundamental": true
+    },
+    {
+      "cargo": "Desarrollador Frontend",
+      "nivel_recomendado": "Junior/Mid/Senior",
+      "rol_principal": "Crear y mantener la Interfaz de Usuario (UI) y la Experiencia de Usuario (UX). Integración con las APIs REST del backend (Spring Boot).",
+      "herramientas_clave": [
+        "React, Angular o Vue.js",
+        "HTML/CSS/JavaScript",
+        "Consumo de APIs RESTful"
+      ],
+      "es_fundamental": false
+    }
+  ],
+  "nota_emprendedor": "Prioriza los roles 'es_fundamental: true' (Backend, QA, DBA, DevOps) si el presupuesto es limitado. El DevOps puede ser cubierto inicialmente por un desarrollador senior."
+}
