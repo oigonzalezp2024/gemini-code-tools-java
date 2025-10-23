@@ -1,16 +1,13 @@
-# Compiled class file
+# -----------------------------------
+# ARCHIVO .gitignore CONSOLIDADO
+# -----------------------------------
+
+# 1. ARTEFACTOS DE COMPILACIÓN DE JAVA Y MAVEN
+# Ignora todos los directorios 'target/' en cualquier nivel del proyecto (incluye el Fat JAR final)
+**/target/
+# Archivos de clase compilados (redundante con **/target/ pero buena práctica)
 *.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
+# Archivos de paquetes (JAR, WAR, etc. - redundante con **/target/)
 *.jar
 *.war
 *.nar
@@ -19,21 +16,26 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+# 2. ARCHIVOS DE LOG Y CRASH DE MÁQUINA VIRTUAL
+*.log
 hs_err_pid*
 replay_pid*
 
-# Ignorar archivos generados por Maven
-/target/
-
-# Ignorar IDEs y archivos de configuración
+# 3. ARCHIVOS Y CACHÉS DE IDEs
 # IntelliJ
 .idea/
 *.iml
-
 # VS Code
 .vscode/
 
-# Ignorar archivos de sistema operativo
+# 4. ARCHIVOS DE SISTEMA OPERATIVO
 .DS_Store
 Thumbs.db
+
+# 5. ESPECÍFICO DEL PROYECTO (ourcrud-java)
+# Directorio de salida del LOG SQL del módulo DB
+sql_output/
+# Archivo de contexto generado por FileProcessor para la IA
+contexto_completo.txt
+# Archivos de código corregido generados por AIAnalyzer
+*-corregido.java

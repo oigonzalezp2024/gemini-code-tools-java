@@ -1,0 +1,1124 @@
+
+// ===== Archivo: data.json =====
+{
+  "titulo": "Perfiles Técnicos Fundamentales para Desarrollo Java Spring Boot",
+  "introduccion": "Matriz de roles clave, sus responsabilidades principales y las herramientas esenciales para un proyecto moderno de software con Spring Boot.",
+  "perfiles": [
+    {
+      "cargo": "Desarrollador Java Backend",
+      "nivel_recomendado": "Senior/Mid/Junior",
+      "rol_principal": "Escribir la lógica de negocio, desarrollar y mantener APIs REST/microservicios, manejar la seguridad y la integración con la base de datos.",
+      "herramientas_clave": [
+        "Java (versiones recientes)",
+        "Spring Boot/Spring Framework",
+        "Spring Data/JPA/Hibernate",
+        "Spring Security",
+        "JUnit/Mockito"
+      ],
+      "es_fundamental": true
+    },
+    {
+      "cargo": "Ingeniero/Administrador de Bases de Datos (DBA)",
+      "nivel_recomendado": "Mid/Senior",
+      "rol_principal": "Diseño, implementación y optimización del esquema de la base de datos (SQL/NoSQL). Asegurar el rendimiento y la integridad de los datos.",
+      "herramientas_clave": [
+        "SQL (PostgreSQL, MySQL, Oracle)",
+        "NoSQL (MongoDB, Cassandra)",
+        "Optimización de Queries"
+      ],
+      "es_fundamental": true
+    },
+    {
+      "cargo": "Ingeniero DevOps",
+      "nivel_recomendado": "Mid/Senior",
+      "rol_principal": "Automatización del ciclo de vida (CI/CD). Configuración de pipelines, contenedores y orquestación para el despliegue a producción.",
+      "herramientas_clave": [
+        "Git",
+        "Maven/Gradle",
+        "Jenkins/GitLab CI/GitHub Actions",
+        "Docker",
+        "Kubernetes",
+        "AWS/GCP/Azure"
+      ],
+      "es_fundamental": true
+    },
+    {
+      "cargo": "Ingeniero de Control de Calidad (QA)/Tester",
+      "nivel_recomendado": "Junior/Mid",
+      "rol_principal": "Diseñar y ejecutar pruebas (unitarias, de integración, funcionales y de rendimiento) para garantizar la calidad y ausencia de errores.",
+      "herramientas_clave": [
+        "JUnit/Mockito (Backend)",
+        "Herramientas de automatización de pruebas",
+        "Metodologías de testing"
+      ],
+      "es_fundamental": true
+    },
+    {
+      "cargo": "Desarrollador Frontend",
+      "nivel_recomendado": "Junior/Mid/Senior",
+      "rol_principal": "Crear y mantener la Interfaz de Usuario (UI) y la Experiencia de Usuario (UX). Integración con las APIs REST del backend (Spring Boot).",
+      "herramientas_clave": [
+        "React, Angular o Vue.js",
+        "HTML/CSS/JavaScript",
+        "Consumo de APIs RESTful"
+      ],
+      "es_fundamental": false
+    }
+  ],
+  "nota_emprendedor": "Prioriza los roles 'es_fundamental: true' (Backend, QA, DBA, DevOps) si el presupuesto es limitado. El DevOps puede ser cubierto inicialmente por un desarrollador senior."
+}
+
+
+// ===== Archivo: gemini-tools-core\pom.xml =====
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>com.myproject</groupId>
+        <artifactId>ourcrud-java</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gemini-tools-core</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+            
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.6.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>com.myproject.core.FileProcessor</mainClass>
+                        </manifest>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+// ===== Archivo: gemini-tools-core\src\main\java\com\myproject\core\AIAnalyzer.java =====
+package com.myproject.core;
+
+import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
+/**
+ * AIAnalyzer: Corrige y analiza archivos usando la API Gemini (v1beta).
+ * * Este analizador se conecta al modelo Gemini para recibir código corregido.
+ * La clave se espera en la variable de entorno "GEMINI_API_KEY".
+ */
+public class AIAnalyzer {
+
+    private static final String API_URL =
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+    private static final int TIMEOUT_MS = 15000;
+
+    /**
+     * Escapa una cadena para su inclusión segura como valor en un payload JSON.
+     * @param value La cadena a escapar.
+     * @return La cadena escapada.
+     */
+    private String escapeJsonString(String value) {
+        if (value == null) return "";
+        // Escapamos caracteres especiales de JSON
+        return value.replace("\\", "\\\\") // Debe ir primero para no escapar los que ya son de escape
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t");
+    }
+
+    /**
+     * Extrae el texto generado desde la respuesta JSON de la API de Gemini
+     * y realiza la decodificación de las secuencias de escape JSON.
+     * * Se decodifican caracteres Unicode (\u003c, \u003e) que pueden aparecer
+     * en comentarios Javadoc o genéricos.
+     * * @param jsonResponse La respuesta JSON completa.
+     * @return El texto extraído y decodificado.
+     */
+    private String extractTextFromGeminiResponse(String jsonResponse) {
+        String searchKey = "\"text\": \"";
+        int startIndex = jsonResponse.indexOf(searchKey);
+        if (startIndex == -1) {
+            System.err.println("Advertencia: No se encontró el campo 'text' en la respuesta.");
+            return "ERROR DE RESPUESTA: " + jsonResponse;
+        }
+
+        startIndex += searchKey.length();
+        int endIndex = startIndex;
+        // Búsqueda simple de la comilla de cierre que no esté escapada
+        while (endIndex < jsonResponse.length()) {
+            char current = jsonResponse.charAt(endIndex);
+            // Comprobamos que el carácter actual sea una comilla y que el anterior no sea una barra invertida (escape)
+            if (current == '"' && jsonResponse.charAt(endIndex - 1) != '\\') break;
+            endIndex++;
+        }
+
+        if (endIndex >= jsonResponse.length()) {
+            return "ERROR DE PARSEO: Se encontró 'text', pero no la comilla de cierre.";
+        }
+
+        String extractedText = jsonResponse.substring(startIndex, endIndex);
+        
+        // Decodificación de secuencias de escape JSON
+        return extractedText.replace("\\n", "\n") 
+                            .replace("\\\"", "\"") 
+                            .replace("\\r", "\r") 
+                            .replace("\\t", "\t") 
+                            // Decodificar los caracteres Unicode para < y > (genéricos)
+                            .replace("\\u003c", "<") 
+                            .replace("\\u003e", ">") 
+                            // El escape de backslash debe ser el último
+                            .replace("\\\\", "\\"); 
+    }
+
+    /**
+     * Analiza y corrige un archivo de código usando el modelo Gemini.
+     * @param context El contexto del proyecto (ej. contenido de otro archivo).
+     * @param fileToFix El contenido del archivo a corregir.
+     * @return El código completo corregido devuelto por el modelo.
+     * @throws IOException Si ocurre un error de red o I/O.
+     */
+    public String analyze(String context, String fileToFix) throws IOException {
+        String apiKey = System.getenv("GEMINI_API_KEY");
+        if (apiKey == null || apiKey.isEmpty()) {
+            throw new IllegalStateException("❌ La variable de entorno GEMINI_API_KEY no está configurada.");
+        }
+
+        // Construcción del prompt
+        String userQuery = String.format(
+            "Contexto del proyecto:\n%s\n\nArchivo a corregir:\n%s",
+            context, fileToFix
+        );
+
+        // La instrucción del sistema pide solo el código para asegurar que sea ejecutable
+        String systemInstruction =
+            "Actúa como un ingeniero de software experimentado. Analiza el contexto completo del proyecto y el archivo proporcionado para encontrar y aplicar las correcciones necesarias. Tu respuesta DEBE ser SOLAMENTE el código completo corregido, sin explicaciones ni bloques de marcado.";
+
+        // ✅ Estructura JSON CORREGIDA: Eliminamos todos los espacios y saltos de línea innecesarios
+        // para evitar el error 400 'Invalid JSON payload'.
+        String jsonInputString = String.format(
+            "{"
+          + "\"system_instruction\":{\"parts\":[{\"text\":\"%s\"}]},"
+          + "\"contents\":[{\"parts\":[{\"text\":\"%s\"}]}]"
+          + "}",
+            escapeJsonString(systemInstruction),
+            escapeJsonString(userQuery)
+        );
+
+        // Conexión
+        URL url = new URL(API_URL + "?key=" + apiKey);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+        connection.setDoOutput(true);
+        connection.setConnectTimeout(TIMEOUT_MS);
+        connection.setReadTimeout(TIMEOUT_MS);
+
+        try (OutputStream os = connection.getOutputStream()) {
+            byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
+            os.write(input);
+        }
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            InputStream errorStream = connection.getErrorStream();
+            String errorResponse = null;
+            if (errorStream != null) {
+                try (BufferedReader errorBr = new BufferedReader(
+                        new InputStreamReader(errorStream, StandardCharsets.UTF_8))) {
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = errorBr.readLine()) != null) sb.append(line);
+                    errorResponse = sb.toString();
+                }
+            }
+            throw new IOException(String.format(
+                "❌ Error %d (%s) al llamar a la API de Gemini. Detalles: %s",
+                responseCode, connection.getResponseMessage(),
+                errorResponse != null ? errorResponse : "No hay detalles."
+            ));
+        }
+
+        StringBuilder responseBuilder = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = br.readLine()) != null) responseBuilder.append(line);
+        }
+
+        return extractTextFromGeminiResponse(responseBuilder.toString());
+    }
+
+    public static void main(String[] args) throws Exception {
+        if (args.length < 2) {
+            System.out.println("Uso: java -cp <classpath> com.myproject.core.AIAnalyzer <contexto.txt> <archivo.java>");
+            System.out.println("Asegúrate de configurar la variable de entorno GEMINI_API_KEY.");
+            return;
+        }
+
+        // Se utilizan clases de java.nio.file para facilitar la lectura de archivos
+        String context = new String(java.nio.file.Files.readAllBytes(
+            java.nio.file.Paths.get(args[0])), StandardCharsets.UTF_8);
+        String fileToFix = new String(java.nio.file.Files.readAllBytes(
+            java.nio.file.Paths.get(args[1])), StandardCharsets.UTF_8);
+
+        AIAnalyzer analyzer = new AIAnalyzer();
+        try {
+            System.out.println("⚙️  Analizando y corrigiendo el archivo. Esto puede tardar unos segundos...");
+            String result = analyzer.analyze(context, fileToFix);
+            java.nio.file.Path outputPath =
+                java.nio.file.Paths.get(args[1].replace(".java", "-corregido.java"));
+            java.nio.file.Files.writeString(outputPath, result, StandardCharsets.UTF_8);
+            System.out.println("✅ Archivo corregido generado en: " + outputPath);
+        } catch (IllegalStateException e) {
+            System.err.println(e.getMessage());
+            System.err.println("Por favor, configura la variable de entorno GEMINI_API_KEY.");
+        } catch (Exception e) {
+            System.err.println("❌ Error durante el proceso de análisis y corrección.");
+            e.printStackTrace();
+        }
+    }
+}
+
+
+// ===== Archivo: gemini-tools-core\src\main\java\com\myproject\core\AlphabeticalPathSorter.java =====
+package com.myproject.core;
+
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class AlphabeticalPathSorter implements PathSorter {
+    @Override
+    public List<Path> sort(List<Path> paths) {
+        List<Path> sorted = new ArrayList<>(paths);
+        sorted.sort((p1, p2) -> p1.toString().compareToIgnoreCase(p2.toString()));
+        return Collections.unmodifiableList(sorted);
+    }
+}
+
+
+// ===== Archivo: gemini-tools-core\src\main\java\com\myproject\core\FileProcessor.java =====
+package com.myproject.core;
+
+import java.io.*;
+import java.nio.file.*;
+import java.util.stream.Collectors;
+
+/**
+ * FileProcessor: compacta la estructura de un proyecto en un solo archivo de texto.
+ */
+public class FileProcessor {
+
+    public void compactProject(String projectPath, String outputFilePath) throws IOException {
+        Path root = Paths.get(projectPath);
+        String result = Files.walk(root)
+                .filter(Files::isRegularFile)
+                .filter(path -> !path.toString().contains("target"))
+                .filter(path -> !path.toString().contains(".git"))
+                .filter(path -> !path.toString().contains("node_modules"))
+                .filter(
+                    path -> path.toString().endsWith(".java") || 
+                        path.toString().endsWith(".xml") || 
+                        path.toString().endsWith(".md") || 
+                        path.toString().endsWith(".json") ||
+                        path.toString().endsWith(".php") ||
+                        path.toString().endsWith(".py") ||
+                        path.toString().endsWith(".txt") ||
+                        path.toString().endsWith(".csv")
+                ).map(
+                    path -> {
+                        try {
+                            Path relativePath = root.relativize(path);
+                            return "\n// ===== Archivo: " + relativePath.toString() + " =====\n"
+                                    + Files.readString(path);
+                        } catch (IOException e) {
+                            System.err.println("Error al leer el archivo " + path.toString() + ": " + e.getMessage());
+                            return "";
+                        }
+                })
+                .collect(Collectors.joining("\n"));
+
+        Files.writeString(Paths.get(outputFilePath), result);
+        System.out.println("✅ Proyecto compactado en: " + outputFilePath);
+    }
+
+    public static void main(String[] args) throws Exception {
+        if (args.length < 2) {
+            System.out.println("Uso: java -cp target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar com.myproject.core.FileProcessor <ruta_proyecto> <salida.txt>");
+            return;
+        }
+
+        FileProcessor processor = new FileProcessor();
+        processor.compactProject(args[0], args[1]);
+    }
+}
+
+
+// ===== Archivo: gemini-tools-core\src\main\java\com\myproject\core\FileStructureReader.java =====
+package com.myproject.core;
+
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+
+/**
+ * Clase que recorre recursivamente un directorio y genera un archivo
+ * con toda la estructura y contenido de sus archivos.
+ */
+public class FileStructureReader {
+
+    public void compactProject(String sourceDir, String outputFile) throws IOException {
+        List<Path> fileList = new ArrayList<>();
+        Path rootPath = Paths.get(sourceDir).toAbsolutePath();
+
+        Files.walk(rootPath)
+            .filter(Files::isRegularFile)
+            .forEach(fileList::add);
+
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+            writer.write("### Proyecto compactado: " + rootPath);
+            writer.newLine();
+            writer.newLine();
+
+            for (Path file : fileList) {
+                writer.write("=== Archivo: " + rootPath.relativize(file) + " ===");
+                writer.newLine();
+                writer.newLine();
+
+                try {
+                    List<String> lines = Files.readAllLines(file);
+                    for (String line : lines) {
+                        writer.write(line);
+                        writer.newLine();
+                    }
+                } catch (IOException e) {
+                    writer.write("[ERROR] No se pudo leer el archivo: " + file.toString());
+                }
+
+                writer.newLine();
+                writer.write("=== FIN DE ARCHIVO ===");
+                writer.newLine();
+                writer.newLine();
+            }
+        }
+
+        System.out.println("✅ Proyecto compactado en: " + outputFile);
+    }
+
+    // Método main para ejecución directa
+    public static void main(String[] args) {
+        if (args.length < 2) {
+            System.out.println("Uso: java -cp <jar> com.myproject.core.FileStructureReader <ruta_proyecto> <archivo_salida>");
+            return;
+        }
+
+        String sourceDir = args[0];
+        String outputFile = args[1];
+
+        try {
+            new FileStructureReader().compactProject(sourceDir, outputFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
+// ===== Archivo: gemini-tools-core\src\main\java\com\myproject\core\PathSorter.java =====
+package com.myproject.core;
+
+import java.nio.file.Path;
+import java.util.List;
+
+public interface PathSorter {
+    List<Path> sort(List<Path> paths);
+}
+
+
+// ===== Archivo: java-db-project\pom.xml =====
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.myproject</groupId>
+        <artifactId>ourcrud-java</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>java-db-project</artifactId>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.33</version>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>com.mycompany.app.DatabaseManager</mainClass> 
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+// ===== Archivo: java-db-project\src\main\java\com\mycompany\app\Controller.java =====
+package com.mycompany.app;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.regex.Matcher; // ⬅️ Nuevo Import
+import java.util.regex.Pattern; // ⬅️ Nuevo Import
+
+// --- Imports de clases del mismo paquete (NECESARIO) ---
+import com.mycompany.app.Database; // Importa la clase Database
+import com.mycompany.app.Perfil;   // Importa la clase Perfil
+
+/**
+ * Capa de Control, que orquesta el flujo de trabajo.
+ */
+public class Controller {
+
+    private final Database repository;
+    private Connection connection;  // La conexión real obtenida del Database
+
+    public Controller(Database repository) {
+        this.repository = repository;
+    }
+
+    /**
+     * Lee el archivo JSON y simula el parseo para extraer los perfiles.
+     * Utiliza Regex simple para mejorar la extracción de valores, evitando el truncamiento por comas.
+     */
+    public List<Perfil> readFile(String filePath) {
+        List<Perfil> perfiles = new ArrayList<>();
+        try {
+            String jsonContent = new String(Files.readAllBytes(Paths.get(filePath))); 
+            System.out.println("[FILE] Archivo '" + filePath + "' leído con éxito.");
+
+            // Patrón para encontrar bloques de perfiles (objetos dentro del array)
+            Pattern profilePattern = Pattern.compile("\\{[^{}]+\\}");
+            Matcher profileMatcher = profilePattern.matcher(jsonContent);
+
+            while (profileMatcher.find()) {
+                String profileBlock = profileMatcher.group();
+                Map<String, String> data = new HashMap<>();
+                
+                // Patrón para extraer clave y valor de manera semi-segura
+                // Busca "key": "value" o "key": [value] o "key": boolean
+                // El grupo 1 es la clave, el grupo 2 es el valor (incluyendo comillas si es string, o corchetes si es array)
+                Pattern fieldPattern = Pattern.compile("\"([^\"]+)\"\\s*:\\s*(\\[[^\\]]*\\]|\"[^\"]*\"|\\w+)");
+                Matcher fieldMatcher = fieldPattern.matcher(profileBlock);
+
+                while (fieldMatcher.find()) {
+                    String key = fieldMatcher.group(1).trim();
+                    String value = fieldMatcher.group(2).trim();
+                    
+                    // Limpieza del valor: elimina comillas externas
+                    if (value.startsWith("\"") && value.endsWith("\"")) {
+                        value = value.substring(1, value.length() - 1);
+                    }
+                    data.put(key, value);
+                }
+
+                // Extracción de datos y preparación para el objeto Perfil
+                String cargo = data.getOrDefault("cargo", "N/A");
+                String nivel = data.getOrDefault("nivel_recomendado", "N/A");
+                String rol = data.getOrDefault("rol_principal", "N/A");
+                
+                // La conversión de Array JSON a formato SQL (paréntesis)
+                String herramientas = data.getOrDefault("herramientas_clave", "[]").replace('[', '(').replace(']', ')');
+                boolean fundamental = Boolean.parseBoolean(data.getOrDefault("es_fundamental", "false"));
+
+                perfiles.add(new Perfil(cargo, nivel, rol, herramientas, fundamental));
+            }
+
+            System.out.println("[DATA] Perfiles extraídos exitosamente. Total: " + perfiles.size());
+            return perfiles;
+
+        } catch (IOException e) {
+            System.err.println("[ERROR] No se pudo leer el archivo: " + e.getMessage());
+            // Intenta buscar en la ruta de recursos para un proyecto Maven
+            try {
+                // Esta ruta alternativa se incluye por si el archivo no está en la raíz
+                String jsonContent = new String(Files.readAllBytes(Paths.get("src/main/java/resources/" + filePath)));
+                System.out.println("[FILE] Archivo '" + "src/main/java/resources/" + filePath + "' leído con éxito (ruta alternativa).");
+                 // NOTA: Para una ejecución completa, la lógica de parsing con Regex debería replicarse aquí si se encuentra el archivo en la ruta alternativa.
+            } catch (IOException ex) {
+                 System.err.println("[ERROR] No se pudo leer el archivo en la ruta del proyecto: " + ex.getMessage());
+            }
+
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Configura y establece la conexión real a la base de datos.
+     * @return true si la conexión fue exitosa, false si falló.
+     */
+    public boolean databaseConfig(String dbName, String hostname, String username, String password) {
+        repository.config(dbName, username, password, hostname);
+        try {
+            this.connection = repository.getConnection();
+            return true;
+        } catch (SQLException e) {
+            System.err.println("-------------------------------------------------------------------------------------------------------------------");
+            System.err.println("[CRÍTICO] ERROR DE CONEXIÓN REAL A LA BASE DE DATOS.");
+            System.err.println("Asegúrese de:");
+            System.err.println("1. MySQL esté activo en 'localhost:3306'.");
+            System.err.println("2. La base de datos '" + dbName + "' exista.");
+            System.err.println("3. El usuario '" + username + "' tenga la contraseña correcta (o vacía).");
+            System.err.println("Mensaje de Error JDBC: " + e.getMessage());
+            System.err.println("-------------------------------------------------------------------------------------------------------------------");
+            return false;
+        }
+    }
+    
+    /**
+     * Genera y ejecuta el SQL para crear la tabla usando snake_case.
+     */
+    public void databaseCreate(String dbType, List<Perfil> perfiles) {
+        if (connection == null) return; 
+        if (!"mysql".equalsIgnoreCase(dbType)) return;
+
+        // 1. Ejecutar DROP TABLE primero.
+        // ➡️ Uso de snake_case para el nombre de la tabla
+        String dropTableSQL = "DROP TABLE IF EXISTS perfiles_tecnicos;"; 
+        repository.executeSql(dropTableSQL);
+        System.out.println("[DB] Se ha ejecutado la sentencia DROP TABLE.");
+
+        // 2. Ejecutar CREATE TABLE por separado.
+        String createTableSQL = "CREATE TABLE perfiles_tecnicos (\n" +
+                                "    id INT AUTO_INCREMENT PRIMARY KEY,\n" +
+                                "    cargo VARCHAR(255) NOT NULL,\n" +
+                                "    nivel_recomendado VARCHAR(50),\n" + // ⬅️ Snake_case
+                                "    rol_principal TEXT,\n" + 
+                                "    herramientas_clave TEXT,\n" + // ⬅️ Snake_case
+                                "    es_fundamental BOOLEAN\n" + // ⬅️ Snake_case
+                                ");";
+        repository.executeSql(createTableSQL);
+        System.out.println("[DB] Se ha generado y ejecutado la sentencia CREATE TABLE.");
+    }
+
+    /**
+     * Genera y ejecuta los INSERTs.
+     */
+    public void databaseInsert(String dbType, List<Perfil> perfiles) {
+        if (connection == null) return;
+        if (!"mysql".equalsIgnoreCase(dbType)) return;
+        
+        System.out.println("\n[DB] Generando sentencias INSERT:");
+        int count = 0;
+        for (Perfil p : perfiles) {
+            // Sanitización simple para evitar errores de comillas en SQL
+            String rolClean = p.rolPrincipal.replace("'", "''"); 
+            String herramientasClean = p.herramientasClave.replace("'", "''");
+
+            // APLICAR FILTRO DE CARACTERES ESPECIALES
+            String herramientasSinEspeciales = herramientasClean.replaceAll("[^a-zA-Z0-9\\s]", " ").trim();
+            herramientasSinEspeciales = herramientasSinEspeciales.replaceAll("\\s+", " ");
+
+            // ➡️ Uso de snake_case en la lista de columnas (coincidiendo con CREATE TABLE)
+            String sql = String.format(
+                "INSERT INTO perfiles_tecnicos (cargo, nivel_recomendado, rol_principal, herramientas_clave, es_fundamental) " +
+                "VALUES ('%s', '%s', '%s', '%s', %s);",
+                p.cargo,
+                p.nivelRecomendado,
+                rolClean,
+                herramientasSinEspeciales, 
+                p.esFundamental ? "TRUE" : "FALSE"
+            );
+            repository.executeSql(sql);
+            count++;
+        }
+        System.out.println("[DB] Se han generado y ejecutado " + count + " sentencias INSERT.");
+    }
+
+    /**
+     * Cierra la conexión de la base de datos.
+     */
+    public void databaseClose() {
+        repository.closeConnection();
+    }
+}
+
+
+// ===== Archivo: java-db-project\src\main\java\com\mycompany\app\Database.java =====
+package com.mycompany.app;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.io.IOException; // ⬅️ Nuevo Import
+import java.nio.file.Files; // ⬅️ Nuevo Import
+import java.nio.file.Paths; // ⬅️ Nuevo Import
+import java.nio.file.StandardOpenOption; // ⬅️ Nuevo Import
+
+/**
+ * Implementación de la Capa de Base de Datos.
+ * Maneja la conexión real con JDBC (MySQL).
+ */
+public class Database { // <-- ¡Debe ser PUBLIC!
+    private String databaseUrl;
+    private String username;
+    private String password;
+    private Connection connection = null; 
+    private boolean isConfigured = false;
+    // ⬅️ Nueva Constante para la ruta del archivo de log SQL
+    private static final String SQL_LOG_PATH = "sql_output/executed_commands.sql";
+
+    // Configura la conexión con los parámetros solicitados
+    public void config(String dbName, String user, String pass, String host) {
+        // Usando el conector 'com.mysql:mysql-connector-j' (la versión moderna)
+        this.databaseUrl = "jdbc:mysql://" + host + ":3306/" + dbName + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+        this.username = user;
+        this.password = pass;
+        this.isConfigured = true;
+        System.out.println("\n[DB] Configuración de la base de datos MySQL (JDBC REAL) completada.");
+        
+        // ⬅️ Inicializa el archivo de log SQL, sobrescribiendo si ya existe
+        try {
+            Files.createDirectories(Paths.get("sql_output"));
+            Files.write(Paths.get(SQL_LOG_PATH), ("-- Archivo de log SQL generado el " + new java.util.Date() + " --\n\n").getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            System.out.println("[FILE] Archivo de log SQL inicializado en: " + SQL_LOG_PATH);
+        } catch (IOException e) {
+            System.err.println("[ERROR] No se pudo inicializar la carpeta/archivo de log SQL: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Intenta establecer la conexión JDBC real.
+     */
+    public Connection getConnection() throws SQLException {
+        if (!isConfigured) {
+            throw new IllegalStateException("La base de datos no ha sido configurada.");
+        }
+        
+        if (connection == null || connection.isClosed()) {
+             System.out.println("[DB] Intentando establecer conexión JDBC...");
+             connection = DriverManager.getConnection(databaseUrl, username, password);
+             System.out.println("[DB] ¡Conexión exitosa! Objeto Connection obtenido.");
+        }
+        return connection;
+    }
+
+    // ⬅️ Nuevo método auxiliar para guardar el SQL
+    private void logSqlToFile(String sql) {
+        try {
+            // Se añade la sentencia SQL seguida de un salto de línea
+            Files.write(Paths.get(SQL_LOG_PATH), (sql + "\n\n").getBytes(), StandardOpenOption.APPEND);
+            System.out.println("[FILE] Comando SQL guardado en: " + SQL_LOG_PATH);
+        } catch (IOException e) {
+            System.err.println("[ERROR] Fallo al escribir la sentencia SQL en el archivo: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ejecuta comandos SQL realmente.
+     * @param sql La sentencia SQL a ejecutar.
+     */
+    public void executeSql(String sql) {
+        System.out.println("\n[SQL] Generando comando SQL:");
+        System.out.println("----------------------------------------------------------------------------------");
+        System.out.println(sql);
+        System.out.println("----------------------------------------------------------------------------------");
+        
+        // 1. Guardar el SQL en el archivo ANTES de la ejecución real
+        logSqlToFile(sql);
+
+        if (connection != null) {
+            try (java.sql.Statement statement = connection.createStatement()) {
+                statement.execute(sql);
+                System.out.println("[DB] ¡Ejecución REAL de SQL completada con éxito!");
+
+            } catch (SQLException e) {
+                System.err.println("[ERROR] Fallo en la ejecución REAL de la sentencia SQL. Detalle: " + e.getMessage());
+            }
+        } else {
+             System.out.println("[DB] ADVERTENCIA: Conexión no disponible, solo se imprime y guarda el SQL (no se ejecuta realmente).");
+        }
+    }
+
+    /**
+     * Cierra la conexión JDBC real.
+     */
+    public void closeConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                System.out.println("[DB] Conexión JDBC real cerrada.");
+            }
+        } catch (SQLException e) {
+            System.err.println("[ERROR] Error al cerrar la conexión: " + e.getMessage());
+        }
+    }
+}
+
+
+// ===== Archivo: java-db-project\src\main\java\com\mycompany\app\DatabaseManager.java =====
+// ===== Archivo: src\main\java\com\mycompany\app\DatabaseManager.java (CORRECCIÓN) =====
+package com.mycompany.app;
+
+import java.util.List;
+
+// --- Imports de clases del mismo paquete (NECESARIO) ---
+import com.mycompany.app.Database;
+import com.mycompany.app.Controller;
+import com.mycompany.app.Perfil;
+
+/**
+ * Clase principal que ejecuta el flujo completo.
+ */
+public class DatabaseManager {
+    
+    public static void main(String[] args) {
+        // En un proyecto Maven/IDE, el archivo data.json debe estar en la raíz
+        final String filePath = "data.json"; 
+
+        // Parámetros de conexión REALES
+        final String HOSTNAME = "localhost";
+        final String USER = "root";
+        final String PASSWORD = ""; 
+        // Nombre de la base de datos en snake_case
+        final String DBNAME = "java_project_db"; 
+
+        System.out.println("--- INICIO DEL FLUJO DE GESTIÓN DE BASE DE DATOS (CONEXIÓN REAL JDBC) ---");
+        
+        // Simulación de inyección de dependencias
+        Database database = new Database();
+        Controller controller = new Controller(database);
+        
+        // 1. Lectura del archivo JSON
+        List<Perfil> perfilesArray = controller.readFile(filePath);
+
+        // 2. Configuración e intento de conexión real
+        boolean connected = controller.databaseConfig(DBNAME, HOSTNAME, USER, PASSWORD);
+        
+        if (connected && !perfilesArray.isEmpty()) {
+            // 3. Creación de la tabla (ejecución REAL de SQL)
+            controller.databaseCreate("mysql", perfilesArray);
+            
+            // 4. Inserción de datos (ejecución REAL de SQL)
+            controller.databaseInsert("mysql", perfilesArray);
+        } else if (connected) {
+            System.out.println("[INFO] No se encontraron perfiles para insertar.");
+        }
+
+        // 5. Cierre de la conexión
+        controller.databaseClose();
+
+        System.out.println("--- FIN DEL FLUJO ---");
+    }
+}
+
+
+// ===== Archivo: java-db-project\src\main\java\com\mycompany\app\Perfil.java =====
+package com.mycompany.app; // Asegúrate de usar el 'groupId' de tu pom.xml
+
+/**
+ * Modelo de datos para un Perfil Técnico.
+ */
+public class Perfil {
+    String cargo;
+    String nivelRecomendado;
+    String rolPrincipal;
+    String herramientasClave; 
+    boolean esFundamental;
+
+    public Perfil(String cargo, String nivelRecomendado, String rolPrincipal, String herramientasClave, boolean esFundamental) {
+        this.cargo = cargo;
+        this.nivelRecomendado = nivelRecomendado;
+        this.rolPrincipal = rolPrincipal;
+        this.herramientasClave = herramientasClave;
+        this.esFundamental = esFundamental;
+    }
+}
+
+
+// ===== Archivo: launcher-app\dependency-reduced-pom.xml =====
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <parent>
+    <artifactId>ourcrud-java</artifactId>
+    <groupId>com.myproject</groupId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
+  <modelVersion>4.0.0</modelVersion>
+  <artifactId>launcher-app</artifactId>
+  <name>Launcher Application (Centralized Execution)</name>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer>
+                  <mainClass>com.mycompany.app.DatabaseManager</mainClass>
+                </transformer>
+              </transformers>
+              <finalName>${project.parent.artifactId}-all-${project.version}</finalName>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
+
+
+// ===== Archivo: launcher-app\pom.xml =====
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>com.myproject</groupId>
+        <artifactId>ourcrud-java</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>launcher-app</artifactId>
+    <packaging>jar</packaging>
+    <name>Launcher Application (Centralized Execution)</name>
+
+    <dependencies>
+        <!-- 1. Dependencia al módulo de Utilidades (Gemini Tools) -->
+        <dependency>
+            <groupId>com.myproject</groupId>
+            <artifactId>gemini-tools-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- 2. Dependencia al módulo de Base de Datos (JDBC/CRUD) -->
+        <dependency>
+            <groupId>com.myproject</groupId>
+            <artifactId>java-db-project</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        
+        <!-- Importante: No es necesario declarar MySQL aquí, ya que java-db-project
+             lo trae como dependencia transitiva, y el shade plugin lo incluirá.
+             Asegúrese de que el pom.xml de java-db-project SÍ declare el driver MySQL. -->
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Maven Shade Plugin para crear un Fat JAR (Uber JAR) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.5.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <!-- Clase centralizada para ejecutar el flujo DB -->
+                                    <mainClass>com.mycompany.app.DatabaseManager</mainClass>
+                                </transformer>
+                            </transformers>
+                            <finalName>${project.parent.artifactId}-all-${project.version}</finalName>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+// ===== Archivo: pom.xml =====
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.myproject</groupId>
+    <artifactId>ourcrud-java</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <modules>
+        <module>java-db-project</module>
+        <module>gemini-tools-core</module>
+        <module>launcher-app</module>
+    </modules>
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+</project>
+
+
+// ===== Archivo: README.md =====
+# 🛠️ ourcrud-java: Herramientas de Código y Gestión JDBC
+
+Este es un proyecto multi-módulo de Maven diseñado para demostrar la integración de diversas utilidades en un entorno Java: herramientas de análisis de código basadas en la API de Google Gemini y un módulo de gestión de base de datos (CRUD) con conexión JDBC real a MySQL.
+
+La ejecución centralizada se logra mediante el módulo `launcher-app`, que genera un único **Fat JAR** con todas las dependencias.
+
+## 🚀 Requisitos Previos
+
+Antes de comenzar, asegúrate de tener instalado y configurado lo siguiente:
+
+1.  **JDK (Java Development Kit)**: Versión 17 o superior.
+2.  **Apache Maven**: Versión 3.6 o superior.
+3.  **Servidor MySQL**: Instancia local activa (en `localhost:3306`).
+4.  **Base de Datos MySQL**: Debe existir una base de datos llamada `java_project_db`.
+5.  **Archivo de Datos**: El archivo `data.json` debe estar ubicado en la raíz del proyecto.
+6.  **Clave API de Gemini** (Solo para el módulo de análisis de código): Configurada como variable de entorno.
+
+### Configuración de la API de Gemini
+
+Para usar las funcionalidades de análisis de código, la clave API debe estar disponible en el sistema:
+
+```bash
+# Ejemplo en Windows (PowerShell)
+$env:GEMINI_API_KEY="TU_CLAVE_AQUI"
+
+# Ejemplo en Linux/macOS
+export GEMINI_API_KEY="TU_CLAVE_AQUI"
+````
+
+## ⚙️ Configuración y Compilación
+
+Ejecuta el siguiente comando en la raíz del proyecto para limpiar, compilar e instalar todos los módulos en el repositorio local de Maven. Esto generará el Fat JAR final en el directorio `launcher-app/target/`.
+
+```bash
+mvn clean install
+```
+
+## 💻 Modos de Ejecución del Software
+
+El proyecto ofrece tres modos principales de ejecución, dirigidos por el Fat JAR unificado (`ourcrud-java-all-1.0-SNAPSHOT.jar`) o invocando clases específicas.
+
+### 1\. 💾 Gestión de Base de Datos (Modo Centralizado)
+
+Este modo ejecuta la clase principal `DatabaseManager`, que se encarga de leer `data.json`, conectar con MySQL, crear la tabla `perfiles_tecnicos` y insertar los datos, resolviendo automáticamente las dependencias del driver JDBC.
+
+**Clase Principal:** `com.mycompany.app.DatabaseManager`
+
+```bash
+# Ejecutar desde la raíz del proyecto (la ruta del JAR es relativa)
+java -jar ./launcher-app/target/ourcrud-java-all-1.0-SNAPSHOT.jar
+```
+
+**Resultado:**
+El programa intentará conectar a `jdbc:mysql://localhost:3306/java_project_db` con el usuario `root` y contraseña vacía. Si es exitoso, generará y ejecutará las sentencias `DROP TABLE`, `CREATE TABLE` e `INSERT` para los perfiles de `data.json`.
+
+-----
+
+### 2\. 📝 Compactación de Código (Generación de Contexto)
+
+Utiliza la herramienta `FileProcessor` para rastrear un directorio de proyecto y compactar el contenido de los archivos relevantes (Java, XML, JSON, etc.) en un solo archivo de texto. Este archivo sirve como **contexto de proyecto** para el analista de IA.
+
+**Clase Principal:** `com.myproject.core.FileProcessor`
+
+```bash
+# Uso: java -cp <Fat-JAR> <Clase> <ruta_proyecto> <salida.txt>
+java -cp ./launcher-app/target/ourcrud-java-all-1.0-SNAPSHOT.jar \
+     com.myproject.core.FileProcessor \
+     . \
+     contexto_completo.txt
+```
+
+**Parámetros:**
+
+  * `ruta_proyecto`: Directorio raíz a escanear (e.g., `.` para el directorio actual).
+  * `salida.txt`: Nombre del archivo de texto generado.
+
+-----
+
+### 3\. 🤖 Análisis y Corrección de Código con IA
+
+Utiliza la herramienta `AIAnalyzer` para enviar un archivo a la API de Gemini, utilizando un archivo de contexto previo (generado en el Modo 2) para obtener correcciones específicas de código.
+
+**Clase Principal:** `com.myproject.core.AIAnalyzer`
+
+```bash
+# Uso: java -cp <Fat-JAR> <Clase> <contexto.txt> <archivo.java>
+java -cp ./launcher-app/target/ourcrud-java-all-1.0-SNAPSHOT.jar \
+     com.myproject.core.AIAnalyzer \
+     contexto_completo.txt \
+     ./java-db-project/src/main/java/com/mycompany/app/Controller.java
+```
+
+**Parámetros:**
+
+  * `contexto.txt`: El archivo de contexto generado por `FileProcessor`.
+  * `archivo.java`: La ruta del archivo específico que deseas que Gemini corrija.
+
+**Resultado:**
+Generará un nuevo archivo con el sufijo `-corregido.java` (ej. `Controller-corregido.java`) conteniendo el código corregido por la IA.
+
+```
+
+// ===== Archivo: README_nv.md =====
+2+2=9999999
