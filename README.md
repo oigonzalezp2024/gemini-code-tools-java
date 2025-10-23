@@ -1,97 +1,101 @@
+# 🛠️ ourcrud-java: Herramientas de Código y Gestión JDBC
 
-# Gemini Code Tools Java
+Este es un proyecto multi-módulo de Maven diseñado para demostrar la integración de diversas utilidades en un entorno Java: herramientas de análisis de código basadas en la API de Google Gemini y un módulo de gestión de base de datos (CRUD) con conexión JDBC real a MySQL.
 
-**Herramienta de Utilidad en Java para Análisis y Compactación de Proyectos con la API de Gemini**
+La ejecución centralizada se logra mediante el módulo `launcher-app`, que genera un único **Fat JAR** con todas las dependencias.
 
-`gemini-code-tools-java` es una utilidad de línea de comandos construida con Java 17 y Maven, diseñada para simplificar el proceso de preparar y corregir código fuente utilizando el modelo de lenguaje avanzado **Gemini 2.5 Flash**.
+## 🚀 Requisitos Previos
 
-La herramienta tiene dos funcionalidades principales:
+Antes de comenzar, asegúrate de tener instalado y configurado lo siguiente:
 
-1.  **Compactación del Código:** Consolida el contenido de múltiples archivos (`.java`, `.xml`, `.md`) en un único archivo de texto para crear un contexto de proyecto completo.
-2.  **Análisis y Corrección con IA:** Envía el contexto del proyecto y un archivo específico al modelo Gemini para recibir la versión corregida y optimizada del código.
+1.  **JDK (Java Development Kit)**: Versión 17 o superior.
+2.  **Apache Maven**: Versión 3.6 o superior.
+3.  **Servidor MySQL**: Instancia local activa (en `localhost:3306`).
+4.  **Base de Datos MySQL**: Debe existir una base de datos llamada `java_project_db`.
+5.  **Archivo de Datos**: El archivo `data.json` debe estar ubicado en la raíz del proyecto.
+6.  **Clave API de Gemini** (Solo para el módulo de análisis de código): Configurada como variable de entorno.
 
-## 🚀 Requisitos de Arranque
+### Configuración de la API de Gemini
 
-* **Java Development Kit (JDK):** Versión **17** o superior.
-* **Apache Maven:** Versión 3.x para construir el proyecto.
-* **Clave de API de Gemini:** Debe estar configurada como variable de entorno.
+Para usar las funcionalidades de análisis de código, la clave API debe estar disponible en el sistema:
 
-### Configuración de la API Key
-
-La herramienta requiere que se configure la variable de entorno `GEMINI_API_KEY`.
-
-**Linux/macOS:**
 ```bash
+# Ejemplo en Windows (PowerShell)
+$env:GEMINI_API_KEY="TU_CLAVE_AQUI"
+
+# Ejemplo en Linux/macOS
 export GEMINI_API_KEY="TU_CLAVE_AQUI"
 ````
 
-**Windows (CMD):**
+## ⚙️ Configuración y Compilación
+
+Ejecuta el siguiente comando en la raíz del proyecto para limpiar, compilar e instalar todos los módulos en el repositorio local de Maven. Esto generará el Fat JAR final en el directorio `launcher-app/target/`.
 
 ```bash
-set GEMINI_API_KEY=TU_CLAVE_AQUI
+mvn clean install
 ```
 
-**Windows (PowerShell):**
+## 💻 Modos de Ejecución del Software
+
+El proyecto ofrece tres modos principales de ejecución, dirigidos por el Fat JAR unificado (`ourcrud-java-all-1.0-SNAPSHOT.jar`) o invocando clases específicas.
+
+### 1\. 💾 Gestión de Base de Datos (Modo Centralizado)
+
+Este modo ejecuta la clase principal `DatabaseManager`, que se encarga de leer `data.json`, conectar con MySQL, crear la tabla `perfiles_tecnicos` y insertar los datos, resolviendo automáticamente las dependencias del driver JDBC.
+
+**Clase Principal:** `com.mycompany.app.DatabaseManager`
 
 ```bash
-$env:GEMINI_API_KEY="TU_CLAVE_AQUI"
+# Ejecutar desde la raíz del proyecto (la ruta del JAR es relativa)
+java -jar ./launcher-app/target/ourcrud-java-all-1.0-SNAPSHOT.jar
 ```
 
-## 🛠️ Instrucciones de Arranque
+**Resultado:**
+El programa intentará conectar a `jdbc:mysql://localhost:3306/java_project_db` con el usuario `root` y contraseña vacía. Si es exitoso, generará y ejecutará las sentencias `DROP TABLE`, `CREATE TABLE` e `INSERT` para los perfiles de `data.json`.
 
-### 1\. Clonar el Repositorio
+-----
+
+### 2\. 📝 Compactación de Código (Generación de Contexto)
+
+Utiliza la herramienta `FileProcessor` para rastrear un directorio de proyecto y compactar el contenido de los archivos relevantes (Java, XML, JSON, etc.) en un solo archivo de texto. Este archivo sirve como **contexto de proyecto** para el analista de IA.
+
+**Clase Principal:** `com.myproject.core.FileProcessor`
 
 ```bash
-git clone https://github.com/tu-usuario/gemini-code-tools-java.git
-cd gemini-code-tools-java
+# Uso: java -cp <Fat-JAR> <Clase> <ruta_proyecto> <salida.txt>
+java -cp ./launcher-app/target/ourcrud-java-all-1.0-SNAPSHOT.jar \
+     com.myproject.core.FileProcessor \
+     . \
+     contexto_completo.txt
 ```
 
-### 2\. Construir el Proyecto
+**Parámetros:**
 
-Este proyecto utiliza el `maven-assembly-plugin` para crear un "JAR con dependencias" (fat JAR), que es autocontenido y fácil de ejecutar.
+  * `ruta_proyecto`: Directorio raíz a escanear (e.g., `.` para el directorio actual).
+  * `salida.txt`: Nombre del archivo de texto generado.
+
+-----
+
+### 3\. 🤖 Análisis y Corrección de Código con IA
+
+Utiliza la herramienta `AIAnalyzer` para enviar un archivo a la API de Gemini, utilizando un archivo de contexto previo (generado en el Modo 2) para obtener correcciones específicas de código.
+
+**Clase Principal:** `com.myproject.core.AIAnalyzer`
 
 ```bash
-mvn clean package
+# Uso: java -cp <Fat-JAR> <Clase> <contexto.txt> <archivo.java>
+java -cp ./launcher-app/target/ourcrud-java-all-1.0-SNAPSHOT.jar \
+     com.myproject.core.AIAnalyzer \
+     contexto_completo.txt \
+     ./java-db-project/src/main/java/com/mycompany/app/Controller.java
 ```
 
-Una vez completado, el archivo ejecutable se encontrará en el directorio `target/`. El nombre del archivo será similar a: `target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar`.
+**Parámetros:**
 
-## 💻 Instrucciones de Uso
+  * `contexto.txt`: El archivo de contexto generado por `FileProcessor`.
+  * `archivo.java`: La ruta del archivo específico que deseas que Gemini corrija.
 
-La herramienta puede ejecutarse en dos modos: **Compactación** o **Análisis/Corrección**.
+**Resultado:**
+Generará un nuevo archivo con el sufijo `-corregido.java` (ej. `Controller-corregido.java`) conteniendo el código corregido por la IA.
 
-### Modo 1: Compactar un Proyecto (Crear Contexto)
-
-La clase principal para esta acción es `com.myproject.core.FileProcessor`.
-
-**Función:** Recorre un directorio, filtra archivos (`.java`, `.xml`, `.md`), ignora carpetas como `target` y `.git`, y junta todo en un archivo de salida para usarlo como contexto en el análisis.
-
-```bash
-# Sintaxis: java -cp <jar-con-dependencias> com.myproject.core.FileProcessor <ruta_proyecto> <salida.txt>
-java -cp target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar com.myproject.core.FileProcessor ./ ./proyecto_compactado.txt
 ```
-
-> **Salida:** Se generará el archivo `contexto_del_proyecto.txt`.
-
-### Modo 2: Analizar y Corregir un Archivo con Gemini
-
-La clase principal para esta acción es `com.myproject.core.AIAnalyzer`.
-
-**Función:** Toma el archivo de contexto generado previamente y el código de un archivo a corregir, lo envía a Gemini, y guarda el resultado corregido.
-
-```bash
-# Compactacion para generar contexto de analisis
-# java -cp <jar-con-dependencias> com.myproject.core.FileProcessor <contexto.txt> <archivo.java>
-java -cp target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar com.myproject.core.FileProcessor ./ ./proyecto_compactado.txt
-
-# Enviar a la AI el contexto y el archivo a analizar
-# java -cp <jar-con-dependencias> com.myproject.core.AIAnalyzer <contexto.txt> <archivo.java>
-java -cp target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar com.myproject.core.AIAnalyzer proyecto_compactado.txt src/main/java/com/myproject/core/PathSorter.java
-```
-
-> **Salida:** Generará un nuevo archivo con el sufijo `-corregido.java`. Por ejemplo, `AIAnalyzer-corregido.java`.
-
-### 📌 Notas Importantes
-
-  * El código utiliza la API HTTP nativa de Java (`HttpURLConnection`) para la comunicación con Gemini, lo que minimiza las dependencias externas.
-  * El analizador está configurado para usar el modelo `gemini-2.5-flash` y una **instrucción de sistema estricta** que solicita **solo el código corregido** como respuesta, sin explicaciones ni bloques de marcado.
