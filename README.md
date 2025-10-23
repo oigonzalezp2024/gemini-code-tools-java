@@ -1,5 +1,5 @@
 
-# gemini-code-tools-java 🤖✨
+# Gemini Code Tools Java
 
 **Herramienta de Utilidad en Java para Análisis y Compactación de Proyectos con la API de Gemini**
 
@@ -68,10 +68,7 @@ La clase principal para esta acción es `com.myproject.core.FileProcessor`.
 
 ```bash
 # Sintaxis: java -cp <jar-con-dependencias> com.myproject.core.FileProcessor <ruta_proyecto> <salida.txt>
-java -cp target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar \
-     com.myproject.core.FileProcessor \
-     ./src/main/java \
-     contexto_del_proyecto.txt
+java -cp target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar com.myproject.core.FileProcessor ./ ./proyecto_compactado.txt
 ```
 
 > **Salida:** Se generará el archivo `contexto_del_proyecto.txt`.
@@ -85,7 +82,7 @@ La clase principal para esta acción es `com.myproject.core.AIAnalyzer`.
 ```bash
 # Compactacion para generar contexto de analisis
 # java -cp <jar-con-dependencias> com.myproject.core.FileProcessor <contexto.txt> <archivo.java>
-java -cp target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar com.myproject.core.FileProcessor ./proyecto ./proyecto_compactado.txt
+java -cp target/ourcrud-java-1.0-SNAPSHOT-jar-with-dependencies.jar com.myproject.core.FileProcessor ./ ./proyecto_compactado.txt
 
 # Enviar a la AI el contexto y el archivo a analizar
 # java -cp <jar-con-dependencias> com.myproject.core.AIAnalyzer <contexto.txt> <archivo.java>
