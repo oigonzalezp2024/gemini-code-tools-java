@@ -1,4 +1,4 @@
-# 🛠️ ourcrud-java: Herramientas de Código y Gestión JDBC
+# 🛠️ Gemini Code Tools Java
 
 Este es un proyecto multi-módulo de Maven diseñado para demostrar la integración de diversas utilidades en un entorno Java: herramientas de análisis de código basadas en la API de Google Gemini y un módulo de gestión de base de datos (CRUD) con conexión **JDBC real a MySQL**.
 
