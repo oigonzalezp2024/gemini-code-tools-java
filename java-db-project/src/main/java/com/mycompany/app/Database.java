@@ -3,34 +3,34 @@ package com.mycompany.app;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.io.IOException; // ⬅️ Nuevo Import
-import java.nio.file.Files; // ⬅️ Nuevo Import
-import java.nio.file.Paths; // ⬅️ Nuevo Import
-import java.nio.file.StandardOpenOption; // ⬅️ Nuevo Import
+import java.io.IOException; 
+import java.nio.file.Files; 
+import java.nio.file.Paths; 
+import java.nio.file.StandardOpenOption; 
 
 /**
  * Implementación de la Capa de Base de Datos.
  * Maneja la conexión real con JDBC (MySQL).
  */
-public class Database { // <-- ¡Debe ser PUBLIC!
+public class Database {
     private String databaseUrl;
     private String username;
     private String password;
-    private Connection connection = null; 
+    private String dbName;
+    private String host;
+    private Connection connection = null;
     private boolean isConfigured = false;
-    // ⬅️ Nueva Constante para la ruta del archivo de log SQL
     private static final String SQL_LOG_PATH = "sql_output/executed_commands.sql";
 
-    // Configura la conexión con los parámetros solicitados
     public void config(String dbName, String user, String pass, String host) {
-        // Usando el conector 'com.mysql:mysql-connector-j' (la versión moderna)
-        this.databaseUrl = "jdbc:mysql://" + host + ":3306/" + dbName + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+        this.dbName = dbName;
+        this.host = host;
         this.username = user;
         this.password = pass;
+        this.databaseUrl = "jdbc:mysql://" + host + ":3306/" + dbName + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
         this.isConfigured = true;
-        System.out.println("\n[DB] Configuración de la base de datos MySQL (JDBC REAL) completada.");
-        
-        // ⬅️ Inicializa el archivo de log SQL, sobrescribiendo si ya existe
+        System.out.println("\n[DB] Configuración de la base de datos MySQL (JDBC REAL) completada. DB: " + dbName);
+
         try {
             Files.createDirectories(Paths.get("sql_output"));
             Files.write(Paths.get(SQL_LOG_PATH), ("-- Archivo de log SQL generado el " + new java.util.Date() + " --\n\n").getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
@@ -39,9 +39,44 @@ public class Database { // <-- ¡Debe ser PUBLIC!
             System.err.println("[ERROR] No se pudo inicializar la carpeta/archivo de log SQL: " + e.getMessage());
         }
     }
-    
+
     /**
-     * Intenta establecer la conexión JDBC real.
+     * Intenta conectarse al servidor y crear la base de datos si no existe.
+     */
+    public boolean createDatabaseIfNotExist() {
+        if (!isConfigured) {
+            System.err.println("[CRÍTICO] Error: Intento de crear DB sin configuración previa.");
+            return false;
+        }
+        
+        String serverUrl = "jdbc:mysql://" + host + ":3306/?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+        String createDBSQL = "CREATE DATABASE IF NOT EXISTS " + dbName + ";";
+
+        try (Connection serverConnection = DriverManager.getConnection(serverUrl, username, password)) {
+            System.out.println("\n[DB] Conexión exitosa al servidor MySQL para la creación de DB.");
+
+            logSqlToFile(createDBSQL);
+            
+            try (java.sql.Statement statement = serverConnection.createStatement()) {
+                statement.execute(createDBSQL);
+                System.out.println("[DB] ¡Ejecución REAL de CREATE DATABASE completada con éxito!");
+                return true;
+            } catch (SQLException e) {
+                 System.err.println("[ERROR] Fallo en la ejecución de CREATE DATABASE. Detalle: " + e.getMessage());
+                 return false;
+            }
+        } catch (SQLException e) {
+            System.err.println("-------------------------------------------------------------------------------------------------------------------");
+            System.err.println("[CRÍTICO] ERROR DE CONEXIÓN AL SERVIDOR MySQL para la creación de la DB.");
+            System.err.println("Asegúrese de que el servidor esté activo y el usuario tenga permisos.");
+            System.err.println("Mensaje de Error JDBC: " + e.getMessage());
+            System.err.println("-------------------------------------------------------------------------------------------------------------------");
+            return false;
+        }
+    }
+
+    /**
+     * Intenta establecer la conexión JDBC real a la base de datos configurada.
      */
     public Connection getConnection() throws SQLException {
         if (!isConfigured) {
@@ -49,17 +84,18 @@ public class Database { // <-- ¡Debe ser PUBLIC!
         }
         
         if (connection == null || connection.isClosed()) {
-             System.out.println("[DB] Intentando establecer conexión JDBC...");
-             connection = DriverManager.getConnection(databaseUrl, username, password);
-             System.out.println("[DB] ¡Conexión exitosa! Objeto Connection obtenido.");
+            System.out.println("[DB] Intentando establecer conexión JDBC a la DB: " + dbName + "...");
+            connection = DriverManager.getConnection(databaseUrl, username, password);
+            System.out.println("[DB] ¡Conexión exitosa! Objeto Connection obtenido.");
         }
         return connection;
     }
 
-    // ⬅️ Nuevo método auxiliar para guardar el SQL
+    /**
+     * Método auxiliar para guardar el SQL
+     */
     private void logSqlToFile(String sql) {
         try {
-            // Se añade la sentencia SQL seguida de un salto de línea
             Files.write(Paths.get(SQL_LOG_PATH), (sql + "\n\n").getBytes(), StandardOpenOption.APPEND);
             System.out.println("[FILE] Comando SQL guardado en: " + SQL_LOG_PATH);
         } catch (IOException e) {
@@ -77,7 +113,6 @@ public class Database { // <-- ¡Debe ser PUBLIC!
         System.out.println(sql);
         System.out.println("----------------------------------------------------------------------------------");
         
-        // 1. Guardar el SQL en el archivo ANTES de la ejecución real
         logSqlToFile(sql);
 
         if (connection != null) {
