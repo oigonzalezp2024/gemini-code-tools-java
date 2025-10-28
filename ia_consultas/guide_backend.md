@@ -1,0 +1,1 @@
+Enumera tus posibles actividades dentro de este proyecto segun el contexto.
