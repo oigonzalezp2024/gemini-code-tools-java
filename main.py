@@ -12,6 +12,7 @@ JAR_PATH = os.path.join(".", "launcher-app", "target", "ourcrud-java-all-1.0-SNA
 FILE_PROCESSOR_CLASS = "com.myproject.core.FileProcessor"
 AI_ANALYZER_CLASS = "com.myproject.core.AIAnalyzer"
 AI_ANALYZER_DB_CLASS = "com.myproject.core.AIAnalyzerDB"
+AI_ANALYZER_QA_CLASS = "com.myproject.core.AIAnalyzerQA"
 CONTEXT_FILE = os.path.join(".", "contexto.txt")
 
 class OrchestratorApp(tk.Tk):
@@ -64,6 +65,10 @@ class OrchestratorApp(tk.Tk):
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=10)
 
+        titulo_especialistas = "Especialistas"
+        button_frame2 = ttk.LabelFrame(main_frame, text=titulo_especialistas, padding="10")
+        button_frame2.pack(fill=tk.X, pady=11)
+
         # Botón 1: Build (Maven Clean Install)
         self.btn_build = ttk.Button(button_frame, text="0. Compilar Proyecto (Maven)", command=lambda: self.start_task(self.build_project))
         self.btn_build.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
@@ -77,7 +82,11 @@ class OrchestratorApp(tk.Tk):
         self.btn_analyze.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
 
         # Botón 4: AIAnalyzerDB (El modo de corrección de archivo/BBDD)
-        self.btn_analyze_db = ttk.Button(button_frame, text="3. Corregir BBDD/Archivos (AIAnalyzerDB)", command=lambda: self.start_task(self.run_ai_analyzer_db))
+        self.btn_analyze_db = ttk.Button(button_frame2, text="Ingeniero DBA", command=lambda: self.start_task(self.run_ai_analyzer_db))
+        self.btn_analyze_db.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+
+        # Botón 5: AIAnalyzerDB (Testeo por parte de QA)
+        self.btn_analyze_db = ttk.Button(button_frame2, text="Ingeniero QA", command=lambda: self.start_task(self.run_ai_analyzer_qa))
         self.btn_analyze_db.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
 
         # ------------------------------------
@@ -339,6 +348,61 @@ class OrchestratorApp(tk.Tk):
             ],
             success_message=f"✅ AIAnalyzerDB finalizado. Proceso de corrección iniciado.",
             error_message="❌ Error al ejecutar AIAnalyzerDB."
+        )
+
+        # 2. Leer y mostrar el contenido del archivo de salida
+        if success:
+            # Replicar la lógica de guardado de Java para saber qué archivo leer:
+            
+            output_path = target_file_path
+            target_lower = target_file_path.lower()
+            
+            if target_lower.endswith(".java"):
+                # Caso 1: Archivo .java -> Lee el archivo con sufijo -corregido.java
+                # Intenta replicar el reemplazo, considerando mayúsculas/minúsculas
+                if target_file_path.endswith(".java"):
+                    output_path = target_file_path.replace(".java", "-corregido.java")
+                elif target_file_path.endswith(".JAVA"):
+                    output_path = target_file_path.replace(".JAVA", "-corregido.JAVA")
+                else:
+                    # En caso de otros case-mix raros, aunque .java debería funcionar
+                    output_path = target_file_path[:-5] + "-corregido" + target_file_path[-5:]
+                
+            # Si no termina en .java, output_path sigue siendo target_file_path (sobrescritura).
+            
+            try:
+                with open(output_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self.after(0, lambda: self.log_output(f"\n--- Contenido CORREGIDO del archivo ({os.path.basename(output_path)}) ---\n", is_error=False))
+                self.after(0, lambda: self.log_output(content))
+                self.after(0, lambda: self.log_output("\n--- Fin del contenido ---", is_error=False))
+
+            except FileNotFoundError:
+                self.after(0, lambda: self.log_output(f"ERROR: El archivo de salida esperado no se encontró: {output_path}", is_error=True))
+            except Exception as e:
+                self.after(0, lambda: self.log_output(f"ERROR al leer el archivo corregido {output_path}: {e}", is_error=True))
+
+
+    def run_ai_analyzer_qa(self):
+        """Ejecuta com.myproject.core.AIAnalyzerDB (modo corrección de archivo/BBDD)."""
+        target_file_path = self.analyzer_path_var.get()
+        
+        if not target_file_path or not os.path.exists(target_file_path):
+            self.after(0, lambda: self.log_output(f"ERROR: La ruta del archivo a corregir es inválida o el archivo no existe: {target_file_path}", is_error=True))
+            return
+
+        # 1. Ejecutar el AIAnalyzerQA con el método run_command existente.
+        success = self.run_command(
+            command_parts=[
+                JAVA_CMD,
+                "-cp", JAR_PATH,
+                AI_ANALYZER_QA_CLASS,
+                CONTEXT_FILE,
+                target_file_path  # Archivo a corregir es el 5to argumento
+            ],
+            success_message=f"✅ AIAnalyzerQA finalizado. Proceso de corrección iniciado.",
+            error_message="❌ Error al ejecutar AIAnalyzerQA."
         )
 
         # 2. Leer y mostrar el contenido del archivo de salida
