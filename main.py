@@ -9,23 +9,96 @@ import time
 # --- Constantes del Proyecto ---
 JAVA_CMD = "java"
 JAR_PATH = os.path.join(".", "launcher-app", "target", "ourcrud-java-all-1.0-SNAPSHOT.jar")
-FILE_PROCESSOR_CLASS = "com.myproject.core.FileProcessor"
-AI_ANALYZER_CLASS = "com.myproject.core.AIAnalyzer"
-AI_ANALYZER_DB_CLASS = "com.myproject.core.AIAnalyzerDB"
-AI_ANALYZER_QA_CLASS = "com.myproject.core.AIAnalyzerQA"
 CONTEXT_FILE = os.path.join(".", "contexto.txt")
 
+# Clases de Funcionalidad Base
+FILE_PROCESSOR_CLASS = "com.myproject.core.FileProcessor"
+AI_ANALYZER_CLASS = "com.myproject.core.AIAnalyzer"
+
+# Clases de Especialistas (extienden de Especialista.java)
+AI_ANALYZER_DB_CLASS = "com.myproject.core.AIAnalyzerDB"
+AI_ANALYZER_QA_CLASS = "com.myproject.core.AIAnalyzerQA"
+AI_ANALYZER_BACKEND_CLASS = "com.myproject.core.AIAnalyzerBackend" 
+AI_ANALYZER_FRONTEND_CLASS = "com.myproject.core.AIAnalyzerFrontend"
+AI_ANALYZER_DEVOPS_CLASS = "com.myproject.core.AIAnalyzerDevOps"
+AI_ANALYZER_GENERIC_CLASS = "com.myproject.core.AIAnalyzerGeneric"
+
+
+# ====================================
+# VENTANA FLOTANTE DE CONSOLA
+# ====================================
+class ConsoleWindow(tk.Toplevel):
+    """Ventana flotante para mostrar el registro de actividad (log)."""
+    def __init__(self, master):
+        super().__init__(master)
+        self.title("Registro de Actividad y Resultados")
+        self.geometry("800x400") # Tamaño fijo para la consola
+        self.protocol("WM_DELETE_WINDOW", self.hide_window) # Ocultar en lugar de destruir
+        self.visible = True
+        
+        frame = ttk.Frame(self, padding="10")
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        self.output_text = scrolledtext.ScrolledText(frame, wrap=tk.WORD, height=20, font=('Consolas', 9))
+        self.output_text.pack(fill=tk.BOTH, expand=True)
+        self.output_text.config(state=tk.DISABLED, background='#2e2e2e', foreground='#e0e0e0')
+        
+        # Configuración de tags de color
+        self.output_text.tag_config('info', foreground='#e0e0e0')
+        self.output_text.tag_config('error', foreground='#ff6b6b')
+
+    def log(self, message, is_error=False):
+        """Añade un mensaje al área de texto."""
+        self.output_text.config(state=tk.NORMAL)
+        tag = 'error' if is_error else 'info'
+        
+        self.output_text.insert(tk.END, message + "\n", tag)
+        self.output_text.see(tk.END)
+        self.output_text.config(state=tk.DISABLED)
+
+    def hide_window(self):
+        """Oculta la ventana y actualiza el estado."""
+        self.withdraw()
+        self.visible = False
+
+    def show_window(self):
+        """Muestra la ventana y actualiza el estado."""
+        self.deiconify()
+        self.visible = True
+        self.focus_set()
+
+
+# ====================================
+# APLICACIÓN PRINCIPAL (ORQUESTADOR)
+# ====================================
 class OrchestratorApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Orquestador Java/Maven (GUI)")
-        self.geometry("1100x650") # Aumentado el ancho para los nuevos botones
-        self.api_process = None # Proceso para el Web API en segundo plano
+        self.api_process = None 
         
+        # Inicializar la consola flotante antes de crear widgets, para que log_output funcione
+        self.console_window = ConsoleWindow(self) 
+        
+        # Variables de Configuración Base
+        self.project_path_var = tk.StringVar(value="./gemini-tools-core")
+        self.analyzer_path_var = tk.StringVar(value="./bbdd.txt")
+
+        # Variables de Ruta Individuales para Especialistas
+        self.dba_path_var = tk.StringVar(value="./ia_consultas/guide_dba.md")
+        self.qa_path_var = tk.StringVar(value="./ia_consultas/guide_qa.md")
+        self.backend_path_var = tk.StringVar(value="./ia_consultas/guide_backend.md")
+        self.frontend_path_var = tk.StringVar(value="./ia_consultas/guide_frontend.md")
+        self.devops_path_var = tk.StringVar(value="./ia_consultas/guide_devops.md")
+        self.generic_path_var = tk.StringVar(value="./ia_consultas/guide_solid.md")
+
         self.create_widgets()
+        # Mostrar la consola al inicio (opcional, puede ser .withdraw() para empezar oculta)
+        self.console_window.show_window()
+
 
     def create_widgets(self):
-        # Configurar estilo para mejor apariencia
+        # Configurar estilo
         style = ttk.Style(self)
         style.theme_use('clam')
         style.configure('TButton', font=('Helvetica', 10, 'bold'), padding=6)
@@ -35,29 +108,54 @@ class OrchestratorApp(tk.Tk):
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         # ------------------------------------
-        # 1. Configuración de Inputs
+        # 1. Configuración de Inputs Base
         # ------------------------------------
-        input_frame = ttk.LabelFrame(main_frame, text="Configuración de Rutas", padding="10")
+        input_frame = ttk.LabelFrame(main_frame, text="Configuración de Rutas Base", padding="10")
         input_frame.pack(fill=tk.X, pady=10)
 
-        # Input 1: Path del Proyecto (para FileProcessor)
+        # Input 1: Path del Proyecto
         ttk.Label(input_frame, text="Ruta Base del Proyecto (Ej: ./src/main/java):").grid(row=0, column=0, sticky="w", pady=5)
-        self.project_path_var = tk.StringVar(value="./gemini-tools-core") # Valor por defecto
         self.project_path_entry = ttk.Entry(input_frame, textvariable=self.project_path_var)
         self.project_path_entry.grid(row=0, column=1, sticky="ew", padx=5)
         self.btn_browse_project = ttk.Button(input_frame, text="Buscar Carpeta", command=self.browse_project_path, width=15)
         self.btn_browse_project.grid(row=0, column=2, sticky="e", padx=5)
         
-        # Input 2: Path de Comparación / Archivo a Corregir (AIAnalyzer / AIAnalyzerDB)
-        ttk.Label(input_frame, text="Ruta de Salida/Archivo a Corregir:").grid(row=1, column=0, sticky="w", pady=5)
-        self.analyzer_path_var = tk.StringVar(value="./bbdd.txt") # Valor por defecto
+        # Input 2: Path de Comparación / Archivo a Corregir (AIAnalyzer Original)
+        ttk.Label(input_frame, text="Ruta de Salida/Archivo a Corregir (AIAnalyzer Original):").grid(row=1, column=0, sticky="w", pady=5)
         self.analyzer_path_entry = ttk.Entry(input_frame, textvariable=self.analyzer_path_var)
         self.analyzer_path_entry.grid(row=1, column=1, sticky="ew", padx=5)
-        self.btn_browse_analyzer = ttk.Button(input_frame, text="Buscar Archivo", command=self.browse_analyzer_path, width=15)
+        self.btn_browse_analyzer = ttk.Button(input_frame, text="Buscar Archivo", command=lambda: self.browse_file_path(self.analyzer_path_var), width=15)
         self.btn_browse_analyzer.grid(row=1, column=2, sticky="e", padx=5)
 
-        input_frame.grid_columnconfigure(1, weight=1) # Permite que el campo de entrada se expanda
-        input_frame.grid_columnconfigure(2, weight=0) # Evita que el botón de búsqueda se expanda
+        input_frame.grid_columnconfigure(1, weight=1) 
+        
+        # ------------------------------------
+        # 1B. Configuración de Rutas Especialistas (2 COLUMNAS)
+        # ------------------------------------
+        specialist_input_frame = ttk.LabelFrame(main_frame, text="Rutas de Archivo - Roles Especialistas", padding="10")
+        specialist_input_frame.pack(fill=tk.X, pady=10)
+
+        specialists_config = [
+            ("DBA", self.dba_path_var), ("QA", self.qa_path_var),
+            ("Backend (Spring)", self.backend_path_var), ("Frontend (UI/UX)", self.frontend_path_var),
+            ("DevOps (CI/CD)", self.devops_path_var), ("Genérico (SOLID)", self.generic_path_var),
+        ]
+        
+        num_cols = 3 
+        items_per_col = (len(specialists_config) + 1) // 2
+        
+        for i, (name, var) in enumerate(specialists_config):
+            row_index = i % items_per_col
+            col_offset = (i // items_per_col) * num_cols
+            
+            ttk.Label(specialist_input_frame, text=f"{name}:").grid(row=row_index, column=0 + col_offset, sticky="w", pady=2, padx=(5 if col_offset else 0, 0))
+            entry = ttk.Entry(specialist_input_frame, textvariable=var)
+            entry.grid(row=row_index, column=1 + col_offset, sticky="ew", padx=5)
+            btn = ttk.Button(specialist_input_frame, text="Buscar Archivo", command=lambda v=var: self.browse_file_path(v), width=15)
+            btn.grid(row=row_index, column=2 + col_offset, sticky="e", padx=5)
+        
+        specialist_input_frame.grid_columnconfigure(1, weight=1)
+        specialist_input_frame.grid_columnconfigure(4, weight=1)
         
         # ------------------------------------
         # 2. Botones de Funcionalidad
@@ -65,29 +163,44 @@ class OrchestratorApp(tk.Tk):
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=10)
 
-        titulo_especialistas = "Especialistas"
-        button_frame2 = ttk.LabelFrame(main_frame, text=titulo_especialistas, padding="10")
-        button_frame2.pack(fill=tk.X, pady=11)
-
-        # Botón 1: Build (Maven Clean Install)
+        # Fila 1: Funcionalidad Base
         self.btn_build = ttk.Button(button_frame, text="0. Compilar Proyecto (Maven)", command=lambda: self.start_task(self.build_project))
         self.btn_build.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
 
-        # Botón 2: FileProcessor
         self.btn_process = ttk.Button(button_frame, text="1. Procesar Archivos (FileProcessor)", command=lambda: self.start_task(self.run_file_processor))
         self.btn_process.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
 
-        # Botón 3: AIAnalyzer (El modo original de comparación)
-        self.btn_analyze = ttk.Button(button_frame, text="2. Analizar y Comparar (AIAnalyzer)", command=lambda: self.start_task(self.run_ai_analyzer))
+        self.btn_analyze = ttk.Button(button_frame, text="2. Analizar y Corregir (AIAnalyzer Original)", command=lambda: self.start_task(self.run_ai_analyzer))
         self.btn_analyze.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        
+        # Fila 2: Roles Especialistas (Generadores de Guías)
+        titulo_especialistas = "Especialistas - Generación de Guías de Aprendizaje"
+        button_frame2 = ttk.LabelFrame(main_frame, text=titulo_especialistas, padding="10")
+        button_frame2.pack(fill=tk.X, pady=11)
 
-        # Botón 4: AIAnalyzerDB (El modo de corrección de archivo/BBDD)
-        self.btn_analyze_db = ttk.Button(button_frame2, text="Ingeniero DBA", command=lambda: self.start_task(self.run_ai_analyzer_db))
-        self.btn_analyze_db.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        button_row1 = ttk.Frame(button_frame2)
+        button_row1.pack(fill=tk.X, pady=5)
+        
+        self.btn_analyze_dba = ttk.Button(button_row1, text="Ingeniero DBA", command=lambda: self.start_task(self.run_ai_analyzer_db))
+        self.btn_analyze_dba.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
 
-        # Botón 5: AIAnalyzerDB (Testeo por parte de QA)
-        self.btn_analyze_db = ttk.Button(button_frame2, text="Ingeniero QA", command=lambda: self.start_task(self.run_ai_analyzer_qa))
-        self.btn_analyze_db.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        self.btn_analyze_qa = ttk.Button(button_row1, text="Ingeniero QA", command=lambda: self.start_task(self.run_ai_analyzer_qa))
+        self.btn_analyze_qa.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        
+        self.btn_analyze_backend = ttk.Button(button_row1, text="Backend (Spring)", command=lambda: self.start_task(self.run_ai_analyzer_backend))
+        self.btn_analyze_backend.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        
+        button_row2 = ttk.Frame(button_frame2)
+        button_row2.pack(fill=tk.X, pady=5)
+        
+        self.btn_analyze_frontend = ttk.Button(button_row2, text="Frontend (UI/UX)", command=lambda: self.start_task(self.run_ai_analyzer_frontend))
+        self.btn_analyze_frontend.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        
+        self.btn_analyze_devops = ttk.Button(button_row2, text="DevOps (CI/CD)", command=lambda: self.start_task(self.run_ai_analyzer_devops))
+        self.btn_analyze_devops.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
+        
+        self.btn_analyze_generic = ttk.Button(button_row2, text="Genérico (SOLID)", command=lambda: self.start_task(self.run_ai_analyzer_generic))
+        self.btn_analyze_generic.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
 
         # ------------------------------------
         # 3. Control del API
@@ -105,26 +218,33 @@ class OrchestratorApp(tk.Tk):
         ttk.Label(api_frame, textvariable=self.api_status_var).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=5)
 
         # ------------------------------------
-        # 4. Estado y Log
+        # 4. Control del Log (Botón de Ventana Flotante)
         # ------------------------------------
-        ttk.Label(main_frame, text="Registro de Actividad y Resultados:").pack(pady=(10, 2), anchor=tk.W)
-        self.output_text = scrolledtext.ScrolledText(main_frame, wrap=tk.WORD, height=20, font=('Consolas', 9))
-        self.output_text.pack(fill=tk.BOTH, expand=True)
-        self.output_text.config(state=tk.DISABLED, background='#2e2e2e', foreground='#e0e0e0') # Estilo oscuro para log
+        log_control_frame = ttk.Frame(main_frame)
+        log_control_frame.pack(fill=tk.X, pady=5)
+        
+        self.btn_toggle_console = ttk.Button(log_control_frame, text="Mostrar/Ocultar Consola de Log", command=self.toggle_console_window)
+        self.btn_toggle_console.pack(expand=True, fill=tk.X)
+        
+    def toggle_console_window(self):
+        """Alterna la visibilidad de la ventana de consola."""
+        if self.console_window.visible:
+            self.console_window.hide_window()
+        else:
+            self.console_window.show_window()
 
 
     def log_output(self, message, is_error=False):
-        """Añade un mensaje al área de texto."""
-        self.output_text.config(state=tk.NORMAL)
-        tag = 'error' if is_error else 'info'
-        
-        self.output_text.tag_config('info', foreground='#e0e0e0')
-        self.output_text.tag_config('error', foreground='#ff6b6b')
+        """Añade un mensaje al área de texto de la ventana flotante."""
+        if self.console_window:
+            # Asegurar que la consola esté visible si se recibe un mensaje
+            if not self.console_window.visible:
+                 self.after(0, self.console_window.show_window)
+            
+            # Usar self.after para encolar la acción en el hilo principal de Tkinter
+            self.after(0, lambda: self.console_window.log(message, is_error))
+            self.update_idletasks() # Fuerza la actualización de la GUI
 
-        self.output_text.insert(tk.END, message + "\n", tag)
-        self.output_text.see(tk.END)
-        self.output_text.config(state=tk.DISABLED)
-        self.update() 
 
     def enable_buttons(self, enable=True):
         """Controla el estado de los botones de ejecución de tareas."""
@@ -132,53 +252,81 @@ class OrchestratorApp(tk.Tk):
         self.btn_build.config(state=state)
         self.btn_process.config(state=state)
         self.btn_analyze.config(state=state)
-        self.btn_analyze_db.config(state=state) # Se asegura de controlar el nuevo botón
+        
+        # Control de los 6 botones de especialistas
+        self.btn_analyze_dba.config(state=state) 
+        self.btn_analyze_qa.config(state=state)
+        self.btn_analyze_backend.config(state=state)
+        self.btn_analyze_frontend.config(state=state)
+        self.btn_analyze_devops.config(state=state)
+        self.btn_analyze_generic.config(state=state)
+
 
     def start_task(self, task_function):
-        """
-        Inicia una tarea en un hilo separado.
-        Utiliza un wrapper para garantizar que self.enable_buttons(True) se llame 
-        de forma segura en el hilo principal de Tkinter, incluso si la tarea falla.
-        """
+        """Inicia una tarea en un hilo separado."""
         def task_wrapper():
             try:
                 task_function()
             except Exception as e:
-                # Captura cualquier excepción no manejada dentro del hilo
                 self.after(0, lambda: self.log_output(f"ERROR FATAL en el hilo: {e}", is_error=True))
             finally:
-                # Llama a self.enable_buttons(True) de forma segura en el hilo principal de Tkinter
                 self.after(0, lambda: self.enable_buttons(True))
 
         self.log_output(f"\n--- Iniciando tarea: {task_function.__name__} ---", is_error=False)
-        self.enable_buttons(False) # Deshabilita los botones de tarea inmediatamente
+        self.enable_buttons(False) 
         threading.Thread(target=task_wrapper, daemon=True).start()
 
+    def _read_stream(self, stream, is_error):
+        """Lee el stream de un proceso línea por línea y lo registra en el log."""
+        # Se asegura de usar la lógica de log_output, que gestiona el acceso al hilo de Tkinter
+        for line in iter(stream.readline, ''):
+            if line:
+                msg = line.strip()
+                if msg:
+                    self.log_output(msg, is_error=is_error)
+        
     def run_command(self, command_parts, success_message, error_message, cwd=None):
-        """Ejecuta un comando y registra su salida en el log."""
+        """
+        Ejecuta un comando y registra su salida en el log en tiempo real.
+        """
         self.log_output(f"Ejecutando: {' '.join(command_parts)}")
+
         try:
-            result = subprocess.run(
+            process = subprocess.Popen(
                 command_parts,
-                check=True,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                cwd=cwd,
-                timeout=300 # 5 minutos de timeout
+                bufsize=1, # Line buffering
+                cwd=cwd
             )
-            # La salida del log debe hacerse de forma segura usando self.after
-            if result.stdout:
-                self.after(0, lambda: self.log_output("STDOUT:\n" + result.stdout.strip()))
             
-            self.after(0, lambda: self.log_output(success_message))
+            stdout_thread = threading.Thread(target=self._read_stream, args=(process.stdout, False), daemon=True)
+            stderr_thread = threading.Thread(target=self._read_stream, args=(process.stderr, True), daemon=True)
+            
+            stdout_thread.start()
+            stderr_thread.start()
+
+            try:
+                process.wait(timeout=300)
+            except subprocess.TimeoutExpired:
+                process.terminate()
+                stdout_thread.join(timeout=1)
+                stderr_thread.join(timeout=1)
+                self.log_output("ERROR: El comando ha excedido el tiempo límite de 5 minutos. Proceso terminado.", is_error=True)
+                return False
+
+            stdout_thread.join()
+            stderr_thread.join()
+
+            if process.returncode != 0:
+                self.log_output(f"ERROR: Comando falló con código {process.returncode}", is_error=True)
+                self.log_output(error_message, is_error=True)
+                return False
+
+            self.log_output(success_message)
             return True
 
-        except subprocess.CalledProcessError as e:
-            self.after(0, lambda: self.log_output(f"ERROR: Comando falló con código {e.returncode}", is_error=True))
-            self.after(0, lambda: self.log_output("STDOUT:\n" + e.stdout.strip(), is_error=True))
-            self.after(0, lambda: self.log_output("STDERR:\n" + e.stderr.strip(), is_error=True))
-            self.after(0, lambda: self.log_output(error_message, is_error=True))
-            return False
         except FileNotFoundError:
             missing_tool = command_parts[0]
             if missing_tool.endswith('mvn') or missing_tool.endswith('mvn.cmd'):
@@ -188,21 +336,15 @@ class OrchestratorApp(tk.Tk):
             else:
                 error_detail = f"Comando '{missing_tool}' no encontrado. ¿Está instalado y en su PATH?"
                 
-            self.after(0, lambda: self.log_output(f"ERROR: {error_detail}", is_error=True))
-            return False
-        except subprocess.TimeoutExpired:
-            self.after(0, lambda: self.log_output("ERROR: El comando ha excedido el tiempo límite de 5 minutos.", is_error=True))
+            self.log_output(f"ERROR: {error_detail}", is_error=True)
             return False
         except Exception as e:
-            self.after(0, lambda: self.log_output(f"ERROR inesperado: {e}", is_error=True))
+            self.log_output(f"ERROR inesperado: {e}", is_error=True)
             return False
-        finally:
-            # Importante: No llamar a enable_buttons(True) aquí. Se hace en el wrapper de start_task.
-            pass
 
 
     # ------------------------------------
-    # Funciones de Lógica de Negocio
+    # Funciones de Lógica de Negocio (Inputs, Build, Process)
     # ------------------------------------
 
     def browse_project_path(self):
@@ -214,69 +356,49 @@ class OrchestratorApp(tk.Tk):
         if directory:
             self.project_path_var.set(directory)
 
-    def browse_analyzer_path(self):
+    def browse_file_path(self, path_var):
         """Abre un diálogo para seleccionar la ruta del archivo de salida/comparación (input/output para AIAnalyzer)."""
-        # Usamos askopenfilename para reflejar que es el archivo a corregir.
         filepath = filedialog.askopenfilename(
             initialdir=os.getcwd(),
-            title="Seleccionar Archivo a Corregir (AIAnalyzerDB)",
+            title="Seleccionar Archivo a Corregir/Generar Guía",
             defaultextension=".txt",
-            filetypes=(("Archivos de Texto", "*.txt"), ("Archivos Java", "*.java"), ("Todos los archivos", "*.*"))
+            filetypes=(("Archivos Markdown", "*.md"), ("Archivos de Texto", "*.txt"), ("Archivos Java", "*.java"), ("Todos los archivos", "*.*"))
         )
         if filepath:
-            self.analyzer_path_var.set(filepath)
+            path_var.set(filepath)
+
 
     def _get_maven_command(self):
-        """
-        Intenta obtener el comando 'mvn'.
-        Usa MAVEN_HOME como un mecanismo de fallback robusto si 'mvn' no está en PATH.
-        """
-        
-        # 1. Intentar con el comando simple 'mvn' (esperando que esté en PATH)
+        """Obtiene el comando 'mvn', usando MAVEN_HOME como fallback."""
         mvn_command = ["mvn"]
-        
-        # 2. Fallback a MAVEN_HOME si existe
         if "MAVEN_HOME" in os.environ:
             maven_home = os.environ["MAVEN_HOME"]
-            
-            # En Windows, el ejecutable puede ser mvn.cmd.
             if sys.platform.startswith('win'):
                 mvn_cmd_path = os.path.join(maven_home, "bin", "mvn.cmd")
                 if os.path.exists(mvn_cmd_path):
                     return [mvn_cmd_path]
-            
-            # Usar mvn (funciona en Linux/Mac y a menudo en Windows si JAVA_HOME está bien)
             mvn_path = os.path.join(maven_home, "bin", "mvn")
             if os.path.exists(mvn_path):
                 return [mvn_path]
-
-        # Si no se encuentra un path explícito, devolvemos el comando simple
         return mvn_command
 
     def build_project(self):
-        """Ejecuta 'mvn clean install' utilizando el comando Maven resuelto."""
+        """Ejecuta 'mvn clean install'."""
         maven_cmd = self._get_maven_command()
-        
-        # Agregamos los argumentos de Maven al comando resuelto.
         command_parts = maven_cmd + ["clean", "install"]
-        
-        # run_command ya se encarga de loguear éxito o fracaso
         self.run_command(
             command_parts=command_parts,
             success_message="✅ Proyecto Java/Maven compilado con éxito.",
             error_message="❌ La compilación del proyecto falló."
         )
 
-
     def run_file_processor(self):
         """Ejecuta com.myproject.core.FileProcessor."""
         project_path = self.project_path_var.get()
-        
         if not project_path:
-            self.after(0, lambda: self.log_output("ERROR: La ruta base del proyecto no puede estar vacía.", is_error=True))
-            return # El wrapper se encargará de reactivar los botones
+            self.log_output("ERROR: La ruta base del proyecto no puede estar vacía.", is_error=True)
+            return
             
-        # El archivo de contexto se sobrescribe automáticamente
         success = self.run_command(
             command_parts=[
                 JAVA_CMD,
@@ -289,15 +411,15 @@ class OrchestratorApp(tk.Tk):
             error_message="❌ Error al ejecutar FileProcessor."
         )
         if success:
-            self.after(0, lambda: self.log_output(f"El archivo {CONTEXT_FILE} se ha creado/sobrescrito con el contexto del proyecto.", is_error=False))
+            self.log_output(f"El archivo {CONTEXT_FILE} se ha creado/sobrescrito con el contexto del proyecto.", is_error=False)
 
 
     def run_ai_analyzer(self):
-        """Ejecuta com.myproject.core.AIAnalyzer (modo original de comparación)."""
+        """Ejecuta com.myproject.core.AIAnalyzer (modo original de corrección, usa la ruta compartida)."""
         output_path = self.analyzer_path_var.get()
         
         if not output_path:
-            self.after(0, lambda: self.log_output("ERROR: La ruta de salida del analizador no puede estar vacía.", is_error=True))
+            self.log_output("ERROR: La ruta de salida del analizador no puede estar vacía.", is_error=True)
             return
 
         # 1. Ejecutar el AIAnalyzer
@@ -316,130 +438,92 @@ class OrchestratorApp(tk.Tk):
         # 2. Leer y mostrar el contenido del archivo de salida
         if success:
             try:
-                with open(output_path, 'r', encoding='utf-8') as f:
+                output_path_to_read = output_path
+                target_lower = output_path.lower()
+                
+                if target_lower.endswith(".java"):
+                    base_name, ext = os.path.splitext(output_path)
+                    output_path_to_read = base_name + "-corregido" + ext
+                
+                with open(output_path_to_read, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                self.after(0, lambda: self.log_output(f"\n--- Contenido del archivo de salida ({output_path}) ---\n", is_error=False))
-                self.after(0, lambda: self.log_output(content))
-                self.after(0, lambda: self.log_output("\n--- Fin del contenido ---", is_error=False))
+                self.log_output(f"\n--- Contenido del archivo de salida ({output_path_to_read}) ---\n", is_error=False)
+                self.log_output(content)
+                self.log_output("\n--- Fin del contenido ---", is_error=False)
 
             except FileNotFoundError:
-                self.after(0, lambda: self.log_output(f"ERROR: Archivo de salida no encontrado en {output_path}", is_error=True))
+                self.log_output(f"ERROR: Archivo de salida no encontrado en {output_path_to_read}", is_error=True)
             except Exception as e:
-                self.after(0, lambda: self.log_output(f"ERROR al leer el archivo {output_path}: {e}", is_error=True))
-
-
-    def run_ai_analyzer_db(self):
-        """Ejecuta com.myproject.core.AIAnalyzerDB (modo corrección de archivo/BBDD)."""
-        target_file_path = self.analyzer_path_var.get()
+                self.log_output(f"ERROR al leer el archivo {output_path_to_read}: {e}", is_error=True)
+    
+    # ------------------------------------
+    # Funciones de Especialistas (Generación de Guías)
+    # ------------------------------------
+    
+    def _execute_specialist_logic(self, class_name, role_name, target_file_path):
+        """Función auxiliar para ejecutar cualquier clase Especialista (DBA, QA, Backend, etc.)."""
         
-        if not target_file_path or not os.path.exists(target_file_path):
-            self.after(0, lambda: self.log_output(f"ERROR: La ruta del archivo a corregir es inválida o el archivo no existe: {target_file_path}", is_error=True))
+        if not target_file_path:
+            self.log_output(f"ERROR: La ruta del archivo para {role_name} no puede estar vacía.", is_error=True)
             return
 
-        # 1. Ejecutar el AIAnalyzerDB con el método run_command existente.
+        # 1. Ejecutar el Especialista
         success = self.run_command(
             command_parts=[
                 JAVA_CMD,
                 "-cp", JAR_PATH,
-                AI_ANALYZER_DB_CLASS,
+                class_name,
                 CONTEXT_FILE,
-                target_file_path  # Archivo a corregir es el 5to argumento
+                target_file_path 
             ],
-            success_message=f"✅ AIAnalyzerDB finalizado. Proceso de corrección iniciado.",
-            error_message="❌ Error al ejecutar AIAnalyzerDB."
+            success_message=f"✅ {role_name} finalizado. Guía de aprendizaje generada.",
+            error_message=f"❌ Error al ejecutar {role_name}."
         )
 
         # 2. Leer y mostrar el contenido del archivo de salida
         if success:
-            # Replicar la lógica de guardado de Java para saber qué archivo leer:
-            
             output_path = target_file_path
             target_lower = target_file_path.lower()
             
             if target_lower.endswith(".java"):
-                # Caso 1: Archivo .java -> Lee el archivo con sufijo -corregido.java
-                # Intenta replicar el reemplazo, considerando mayúsculas/minúsculas
-                if target_file_path.endswith(".java"):
-                    output_path = target_file_path.replace(".java", "-corregido.java")
-                elif target_file_path.endswith(".JAVA"):
-                    output_path = target_file_path.replace(".JAVA", "-corregido.JAVA")
-                else:
-                    # En caso de otros case-mix raros, aunque .java debería funcionar
-                    output_path = target_file_path[:-5] + "-corregido" + target_file_path[-5:]
-                
-            # Si no termina en .java, output_path sigue siendo target_file_path (sobrescritura).
-            
+                base_name, ext = os.path.splitext(target_file_path)
+                output_path = base_name + "-corregido" + ext
+
             try:
                 with open(output_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                self.after(0, lambda: self.log_output(f"\n--- Contenido CORREGIDO del archivo ({os.path.basename(output_path)}) ---\n", is_error=False))
-                self.after(0, lambda: self.log_output(content))
-                self.after(0, lambda: self.log_output("\n--- Fin del contenido ---", is_error=False))
+                self.log_output(f"\n--- Guía de {role_name} ({os.path.basename(output_path)}) ---\n", is_error=False)
+                self.log_output(content)
+                self.log_output("\n--- Fin de la Guía ---", is_error=False)
 
             except FileNotFoundError:
-                self.after(0, lambda: self.log_output(f"ERROR: El archivo de salida esperado no se encontró: {output_path}", is_error=True))
+                self.log_output(f"ERROR: El archivo de salida esperado no se encontró: {output_path}", is_error=True)
             except Exception as e:
-                self.after(0, lambda: self.log_output(f"ERROR al leer el archivo corregido {output_path}: {e}", is_error=True))
+                self.log_output(f"ERROR al leer el archivo de salida {output_path}: {e}", is_error=True)
 
+    # Métodos de ejecución para cada rol 
+    def run_ai_analyzer_db(self):
+        self._execute_specialist_logic(AI_ANALYZER_DB_CLASS, "Ingeniero DBA", self.dba_path_var.get())
 
     def run_ai_analyzer_qa(self):
-        """Ejecuta com.myproject.core.AIAnalyzerDB (modo corrección de archivo/BBDD)."""
-        target_file_path = self.analyzer_path_var.get()
+        self._execute_specialist_logic(AI_ANALYZER_QA_CLASS, "Ingeniero QA", self.qa_path_var.get())
         
-        if not target_file_path or not os.path.exists(target_file_path):
-            self.after(0, lambda: self.log_output(f"ERROR: La ruta del archivo a corregir es inválida o el archivo no existe: {target_file_path}", is_error=True))
-            return
+    def run_ai_analyzer_backend(self):
+        self._execute_specialist_logic(AI_ANALYZER_BACKEND_CLASS, "Backend (Spring)", self.backend_path_var.get())
 
-        # 1. Ejecutar el AIAnalyzerQA con el método run_command existente.
-        success = self.run_command(
-            command_parts=[
-                JAVA_CMD,
-                "-cp", JAR_PATH,
-                AI_ANALYZER_QA_CLASS,
-                CONTEXT_FILE,
-                target_file_path  # Archivo a corregir es el 5to argumento
-            ],
-            success_message=f"✅ AIAnalyzerQA finalizado. Proceso de corrección iniciado.",
-            error_message="❌ Error al ejecutar AIAnalyzerQA."
-        )
+    def run_ai_analyzer_frontend(self):
+        self._execute_specialist_logic(AI_ANALYZER_FRONTEND_CLASS, "Frontend (UI/UX)", self.frontend_path_var.get())
 
-        # 2. Leer y mostrar el contenido del archivo de salida
-        if success:
-            # Replicar la lógica de guardado de Java para saber qué archivo leer:
-            
-            output_path = target_file_path
-            target_lower = target_file_path.lower()
-            
-            if target_lower.endswith(".java"):
-                # Caso 1: Archivo .java -> Lee el archivo con sufijo -corregido.java
-                # Intenta replicar el reemplazo, considerando mayúsculas/minúsculas
-                if target_file_path.endswith(".java"):
-                    output_path = target_file_path.replace(".java", "-corregido.java")
-                elif target_file_path.endswith(".JAVA"):
-                    output_path = target_file_path.replace(".JAVA", "-corregido.JAVA")
-                else:
-                    # En caso de otros case-mix raros, aunque .java debería funcionar
-                    output_path = target_file_path[:-5] + "-corregido" + target_file_path[-5:]
-                
-            # Si no termina en .java, output_path sigue siendo target_file_path (sobrescritura).
-            
-            try:
-                with open(output_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                self.after(0, lambda: self.log_output(f"\n--- Contenido CORREGIDO del archivo ({os.path.basename(output_path)}) ---\n", is_error=False))
-                self.after(0, lambda: self.log_output(content))
-                self.after(0, lambda: self.log_output("\n--- Fin del contenido ---", is_error=False))
+    def run_ai_analyzer_devops(self):
+        self._execute_specialist_logic(AI_ANALYZER_DEVOPS_CLASS, "DevOps (CI/CD)", self.devops_path_var.get())
 
-            except FileNotFoundError:
-                self.after(0, lambda: self.log_output(f"ERROR: El archivo de salida esperado no se encontró: {output_path}", is_error=True))
-            except Exception as e:
-                self.after(0, lambda: self.log_output(f"ERROR al leer el archivo corregido {output_path}: {e}", is_error=True))
+    def run_ai_analyzer_generic(self):
+        self._execute_specialist_logic(AI_ANALYZER_GENERIC_CLASS, "Genérico (SOLID)", self.generic_path_var.get())
 
     # ------------------------------------
-    # Control del API Web
+    # Control del API Web 
     # ------------------------------------
 
     def start_api(self):
@@ -452,13 +536,12 @@ class OrchestratorApp(tk.Tk):
         self.api_status_var.set("API: Iniciando...")
         self.log_output("\n--- Iniciando Java Web API en segundo plano ---")
 
-        # Usamos un hilo para manejar la subejecución y evitar que la GUI se bloquee
         threading.Thread(target=self._api_starter_logic, daemon=True).start()
 
     def _api_starter_logic(self):
         try:
             if not os.path.exists(JAR_PATH):
-                self.after(0, lambda: self.log_output(f"ERROR: JAR no encontrado en {JAR_PATH}. ¿Ha compilado el proyecto?", is_error=True))
+                self.log_output(f"ERROR: JAR no encontrado en {JAR_PATH}. ¿Ha compilado el proyecto?", is_error=True)
                 return
 
             self.api_process = subprocess.Popen(
@@ -466,30 +549,32 @@ class OrchestratorApp(tk.Tk):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                bufsize=1 # Para lectura en tiempo real
+                bufsize=1 
             )
-            self.after(0, lambda: self.log_output(f"Web API iniciado con PID: {self.api_process.pid}"))
-            self.after(0, lambda: self.api_status_var.set(f"API: Corriendo (PID: {self.api_process.pid})"))
-            self.after(0, lambda: self.btn_stop_api.config(state=tk.NORMAL))
+            self.log_output(f"Web API iniciado con PID: {self.api_process.pid}")
+            self.api_status_var.set(f"API: Corriendo (PID: {self.api_process.pid})")
+            self.btn_stop_api.config(state=tk.NORMAL)
             
-            # Bucle para capturar la salida del API en tiempo real
-            for line in iter(self.api_process.stdout.readline, ''):
-                if not line: break
-                self.after(0, lambda msg=line.strip(): self.log_output(f"API >> {msg}"))
+            stdout_thread = threading.Thread(target=self._read_stream, args=(self.api_process.stdout, False), daemon=True)
+            stderr_thread = threading.Thread(target=self._read_stream, args=(self.api_process.stderr, True), daemon=True)
+            stdout_thread.start()
+            stderr_thread.start()
 
-            # Después de que el API termina, verifica el código de retorno
             self.api_process.wait()
             return_code = self.api_process.returncode
 
-            self.after(0, lambda: self.log_output(f"Web API terminó con código: {return_code}", is_error=(return_code != 0)))
-            self.after(0, lambda: self.api_status_var.set("API: Detenido"))
-            self.after(0, lambda: self.btn_stop_api.config(state=tk.DISABLED))
+            stdout_thread.join()
+            stderr_thread.join()
+
+            self.log_output(f"Web API terminó con código: {return_code}", is_error=(return_code != 0))
+            self.api_status_var.set("API: Detenido")
+            self.btn_stop_api.config(state=tk.DISABLED)
 
         except Exception as e:
-            self.after(0, lambda: self.log_output(f"ERROR al iniciar/monitorear el API: {e}", is_error=True))
-            self.after(0, lambda: self.api_status_var.set("API: Error"))
+            self.log_output(f"ERROR al iniciar/monitorear el API: {e}", is_error=True)
+            self.api_status_var.set("API: Error")
         finally:
-            self.after(0, lambda: self.btn_start_api.config(state=tk.NORMAL))
+            self.btn_start_api.config(state=tk.NORMAL)
 
 
     def stop_api(self):
@@ -504,39 +589,35 @@ class OrchestratorApp(tk.Tk):
         self.btn_stop_api.config(state=tk.DISABLED)
         self.api_status_var.set("API: Deteniendo...")
         
-        # Usamos un hilo para el proceso de terminación para evitar el bloqueo por 'wait'
         threading.Thread(target=self._api_stopper_logic, daemon=True).start()
 
     def _api_stopper_logic(self):
         try:
-            # 1. Terminación suave (SIGTERM)
             self.api_process.terminate() 
-            self.api_process.wait(timeout=10)
-            self.after(0, lambda: self.log_output("Web API detenido exitosamente.", is_error=False))
-            
-        except subprocess.TimeoutExpired:
-            # 2. Terminación forzosa (SIGKILL)
-            self.after(0, lambda: self.log_output("El API no terminó de forma suave. Matándolo forzosamente.", is_error=True))
-            self.api_process.kill()
-            self.api_process.wait()
+            try:
+                self.api_process.wait(timeout=10)
+                self.log_output("Web API detenido exitosamente.", is_error=False)
+            except subprocess.TimeoutExpired:
+                 self.log_output("El API no terminó de forma suave. Matándolo forzosamente.", is_error=True)
+                 self.api_process.kill()
+                 self.api_process.wait()
         
         except Exception as e:
-            self.after(0, lambda: self.log_output(f"ERROR al detener el API: {e}", is_error=True))
+            self.log_output(f"ERROR al detener el API: {e}", is_error=True)
 
         finally:
-            # Muestra cualquier salida final de error
-            stdout, stderr = self.api_process.communicate()
-            if stderr:
-                self.after(0, lambda: self.log_output("API STDERR final:\n" + stderr.strip(), is_error=True))
-                
-            self.after(0, lambda: self.api_status_var.set("API: Detenido"))
-            self.after(0, lambda: self.btn_start_api.config(state=tk.NORMAL))
+            self.api_status_var.set("API: Detenido")
+            self.btn_start_api.config(state=tk.NORMAL)
 
     def on_closing(self):
-        """Se asegura de que el API se detenga al cerrar la ventana."""
+        """Se asegura de que el API se detenga al cerrar la ventana principal."""
+        
+        # Cerrar también la ventana flotante
+        if self.console_window:
+            self.console_window.destroy()
+            
         if self.api_process and self.api_process.poll() is None:
             if messagebox.askyesno("Salir", "El Web API está corriendo. ¿Desea detenerlo y cerrar la aplicación?"):
-                # Se utiliza un hilo para detener el API y cerrar
                 threading.Thread(target=self._stop_and_close, daemon=True).start()
             return
         self.destroy()
@@ -544,12 +625,11 @@ class OrchestratorApp(tk.Tk):
     def _stop_and_close(self):
         """Detiene el API y cierra la aplicación."""
         self.stop_api()
-        # Dar un pequeño tiempo para que el hilo termine la detención
-        time.sleep(1)
+        time.sleep(1) 
         self.destroy()
 
 if __name__ == "__main__":
     app = OrchestratorApp()
-    # Asegura la limpieza del API al cerrar la ventana
     app.protocol("WM_DELETE_WINDOW", app.on_closing)
     app.mainloop()
+    
